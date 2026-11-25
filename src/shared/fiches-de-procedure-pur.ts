@@ -46,6 +46,20 @@ export const RUBRIQUES: readonly { id: RubriqueId; titre: string; aide: string; 
 
 export const IDS_DES_RUBRIQUES: readonly RubriqueId[] = RUBRIQUES.map((r) => r.id);
 
+/** D'OÙ VIENT UNE LIGNE (25 novembre 2026, « va faire tes recherches ») : le
+    catalogue ou le laboratoire de la Maison, ce que la direction a dicté, la
+    notice d'un fabricant, ou la pratique professionnelle relevée par une
+    recherche. La direction relit en sachant ce qu'elle vérifie. */
+export type OrigineDeLaLigne = 'catalogue' | 'laboratoire' | 'maison' | 'notice' | 'pratique';
+export const ORIGINES_DES_LIGNES: readonly OrigineDeLaLigne[] = ['catalogue', 'laboratoire', 'maison', 'notice', 'pratique'];
+export const MOT_DE_L_ORIGINE: Record<OrigineDeLaLigne, string> = {
+  catalogue: 'catalogue de la Maison',
+  laboratoire: 'laboratoire de la Maison',
+  maison: 'décidé par la Maison',
+  notice: 'notice du fabricant',
+  pratique: 'pratique professionnelle',
+};
+
 export type LigneDeFiche = {
   id: string;
   texte: string;
@@ -54,6 +68,10 @@ export type LigneDeFiche = {
   /** CE QUI RESTE À VALIDER sur cette ligne, en toutes lettres. Présent : la
       ligne est signalée partout où elle se lit. */
   aValider?: string;
+  /** L'origine de la ligne, quand elle est connue. */
+  source?: OrigineDeLaLigne;
+  /** La référence de la source (une notice, une page), pour qui veut vérifier. */
+  ref?: string;
 };
 
 export type ContenuDeFiche = Record<RubriqueId, LigneDeFiche[]>;
@@ -110,133 +128,25 @@ export const codeNuDeLaPrestation = (code?: string): string => (code ?? '').repl
 export const nomSansLongueur = (nom: string): string =>
   nom.replace(/\s*·\s*(Court|Mi-Long|Long ou haute densité)\s*$/, '');
 
-/* ══ LA FICHE SÓWÀ ═══════════════════════════════════════════════════════
-   Ce que Yéman a dicté le 25 novembre 2026, et ce que le catalogue dit déjà
-   du Rituel Sówà™ (sa description, « aucune remise »). Rien d'autre.
+/* ══ LES FICHES VIVENT EN BASE ═══════════════════════════════════════════
+   Le matin du 25 novembre 2026, la fiche Sówà était écrite ici, en brouillon,
+   seize points « à valider ». Le soir, « Décide et valide la fiche Sówà »
+   (Yéman) : elle a été décidée sur la notice de Pouxit XF et les
+   recommandations de la Société française de dermatologie, et posée VALIDÉE
+   dans le document par un réglage. Une copie restée ici aurait contredit
+   celle que lit l'équipe.
 
-   · Pouxit : la référence exacte reste à inscrire ; l'âge minimum, le temps
-     de pose, le rinçage et la seconde application DÉPENDENT DE SA NOTICE.
-   · Neem et shikakaï : envisagés, usage à valider (les enfants surtout). En
-     attendant ils restent HORS de la séance : Pouxit seul, selon sa notice.
-   · Le DÀNDÀN™ est recommandé ; la Couronne Cocon est offerte aux enfants ;
-     le contrôle est offert à J+7.
-   · La Couronne Cocon et le contrôle n'ont pas de prestation au catalogue
-     (lu le 25 novembre 2026) : la fiche le signale au lieu de l'inventer. */
+   LE CODE NE PORTE DONC PLUS AUCUNE FICHE. Elles s'écrivent dans
+   `scripts/fiches-de-procedure/familles/` (chaque ligne y dit son origine),
+   se relisent sur la page de validation, et entrent dans le document
+   `mnd_fiches_de_procedure` une fois validées. Le catalogue du code n'est
+   qu'une semence ; pour les fiches, il n'y a plus de semence du tout. */
 
 /** L'identifiant du Rituel Sówà™ au catalogue de la Maison (comme `besoins-pur`). */
 export const ID_DU_RITUEL_SOWA = '1740l5ysxj';
 
-const SELON_LA_NOTICE = 'Selon la notice du produit';
-
-export const CONTENU_SOWA: ContenuDeFiche = {
-  objectif: [
-    { id: 'sowa-ob-1', texte: 'Éliminer les poux des locks, avec discrétion et sans jugement.' },
-    { id: 'sowa-ob-2', texte: 'À la sortie : un cuir chevelu traité, les lentes retirées au peigne fin.' },
-    { id: 'sowa-ob-3', texte: 'Le rituel tient en deux venues : le premier rendez-vous, puis le contrôle offert à J+7.' },
-  ],
-  public: [
-    { id: 'sowa-pu-1', texte: 'Toute personne qui a des démangeaisons, ou qui a vu des poux ou des lentes, chez elle ou chez un proche.' },
-    { id: 'sowa-pu-2', texte: 'Adultes et enfants. Pour un enfant, la coiffure protectrice Couronne Cocon est offerte.' },
-    {
-      id: 'sowa-pu-3', texte: 'Âge minimum : celui de la notice du produit.',
-      aValider: 'À recopier de la notice du Pouxit utilisé au salon, une fois sa référence inscrite. Aucun âge n’a été supposé.',
-    },
-    {
-      id: 'sowa-pu-4', texte: 'Contre-indications : aucune n’est écrite sur cette fiche.',
-      aValider: 'À recopier de la notice du produit, puis à valider par la direction. Rien n’a été supposé.',
-    },
-  ],
-  produits: [
-    {
-      id: 'sowa-pr-1', texte: 'Pouxit · traitement anti-poux',
-      aValider: 'Inscrire la référence exacte utilisée au salon. L’âge minimum, le temps de pose, le rinçage et la seconde application dépendent de sa notice.',
-    },
-    {
-      id: 'sowa-pr-2', texte: 'Poudre de neem et poudre de shikakaï · composants végétaux envisagés pour Sówà',
-      aValider: 'Usage à valider, notamment pour les enfants. En attendant : hors de la séance anti-poux. Pouxit seul, selon sa notice.',
-    },
-    { id: 'sowa-pr-3', texte: 'Peigne fin · retrait des lentes' },
-    {
-      id: 'sowa-pr-4', texte: 'Produit du lavage, après la pose',
-      aValider: 'Le produit utilisé pour le lavage n’est pas précisé : à inscrire.',
-    },
-  ],
-  arrivee: [
-    { id: 'sowa-ar-1', texte: 'Examiner le cuir chevelu avec la cliente, avec discrétion et sans jugement.' },
-    { id: 'sowa-ar-2', texte: 'Constater la présence de poux ou de lentes.' },
-    {
-      id: 'sowa-ar-3', texte: 'Pour un enfant : son âge, à comparer à l’âge minimum de la notice.',
-      aValider: 'Âge minimum à recopier de la notice du Pouxit utilisé.',
-    },
-    {
-      id: 'sowa-ar-4', texte: 'Autres vérifications et précautions de la notice.',
-      aValider: 'À écrire par la direction, d’après la notice du produit. Rien n’a été supposé.',
-    },
-  ],
-  etapes: [
-    { id: 'sowa-et-1', texte: 'Examen du cuir chevelu, avec la cliente.' },
-    {
-      id: 'sowa-et-2', texte: 'Application du traitement anti-poux Pouxit, lock par lock. Pouxit seul : ni neem ni shikakaï dans cette séance.',
-      aValider: 'Dosage : aucun n’est écrit ici. Suivre la notice ; à recopier une fois la référence inscrite.',
-    },
-    {
-      id: 'sowa-et-3', texte: 'Temps de pose.', detail: SELON_LA_NOTICE,
-      aValider: 'Durée à recopier de la notice du Pouxit utilisé. Aucune durée n’a été supposée.',
-    },
-    {
-      id: 'sowa-et-4', texte: 'Rinçage, puis lavage soigné.', detail: SELON_LA_NOTICE,
-      aValider: 'Le rinçage dépend de la notice : à recopier.',
-    },
-    { id: 'sowa-et-5', texte: 'Retrait des lentes au peigne fin.' },
-    { id: 'sowa-et-6', texte: 'Recommander le soin hydratant DÀNDÀN™ à la cliente.' },
-    {
-      id: 'sowa-et-7', texte: 'Pour un enfant : la coiffure protectrice Couronne Cocon, offerte.',
-      aValider: 'La Couronne Cocon n’est pas décrite au catalogue : ses gestes et son temps sont à écrire.',
-    },
-    { id: 'sowa-et-8', texte: 'Poser avec elle le rendez-vous de contrôle, offert, à J+7.' },
-    {
-      id: 'sowa-et-9', texte: 'Seconde application.', detail: SELON_LA_NOTICE,
-      aValider: 'Si elle est due, et quand : cela dépend de la notice, à recopier. À dire aussi si elle se fait au contrôle de J+7.',
-    },
-  ],
-  conseils: [
-    { id: 'sowa-co-1', texte: 'Revenir à J+7 pour la séance de contrôle, offerte.' },
-    { id: 'sowa-co-2', texte: 'Le soin hydratant DÀNDÀN™ est recommandé à la suite du rituel.' },
-    {
-      id: 'sowa-co-3', texte: 'Conseils à suivre à la maison.',
-      aValider: 'À écrire par la direction, d’après la notice du produit. Aucun conseil n’a été supposé.',
-    },
-  ],
-  suivi: [
-    { id: 'sowa-su-1', texte: 'Compris : le premier rendez-vous, le Rituel Sówà™.' },
-    {
-      id: 'sowa-su-2', texte: 'Compris : la recommandation du soin hydratant DÀNDÀN™.',
-      aValider: 'À préciser : lequel (sept huiles ou Léger), le jour même ou à un autre rendez-vous, et à quel prix.',
-    },
-    {
-      id: 'sowa-su-3', texte: 'Offert aux enfants : la coiffure protectrice Couronne Cocon.',
-      aValider: 'La Couronne Cocon n’a pas de prestation au catalogue : à créer, offerte, pour qu’elle se pose au rendez-vous. À préciser : jusqu’à quel âge.',
-    },
-    {
-      id: 'sowa-su-4', texte: 'Offert : la séance de contrôle, à J+7.',
-      aValider: 'Aucune prestation de contrôle au catalogue : le rendez-vous se pose à la main. À écrire : ce qui s’y fait.',
-    },
-    { id: 'sowa-su-5', texte: 'Le Rituel Sówà™ ne porte aucune remise.' },
-  ],
-};
-
-export const FICHE_SOWA: FicheDeProcedure = {
-  serviceId: ID_DU_RITUEL_SOWA,
-  titre: 'Rituel Sówà™ · Rituel anti-poux Maison MND',
-  brouillon: CONTENU_SOWA,
-};
-
-/** LES FICHES ÉCRITES DANS LE CODE. Elles naissent en BROUILLON : la
-    validation porte un nom et une date, et ce nom ne peut être que celui de
-    qui a relu. Une fiche du document l'emporte toujours sur sa semence. */
-export const FICHES_DE_DEPART = (): LesFiches => ({
-  [ID_DU_RITUEL_SOWA]: copieDeLaFiche(FICHE_SOWA),
-});
+/** Aucune fiche n'est écrite dans le code : le document fait foi. */
+export const FICHES_DE_DEPART = (): LesFiches => ({});
 
 /* ══ LIRE SANS CRAINTE ═══════════════════════════════════════════════════ */
 
@@ -249,11 +159,15 @@ const ligneSure = (brut: unknown, repli: string): LigneDeFiche | null => {
   const detail = texteSur(o.detail).trim();
   const aValider = texteSur(o.aValider).trim();
   if (!texte.trim() && !detail && !aValider) return null;
+  const source = ORIGINES_DES_LIGNES.find((x) => x === o.source);
+  const ref = texteSur(o.ref).trim();
   return {
     id: texteSur(o.id) || repli,
     texte,
     ...(detail ? { detail } : {}),
     ...(aValider ? { aValider } : {}),
+    ...(source ? { source } : {}),
+    ...(ref ? { ref } : {}),
   };
 };
 
@@ -289,7 +203,9 @@ export const ficheSure = (brut: unknown, serviceId: string): FicheDeProcedure | 
     serviceId,
     ...(code ? { code } : {}),
     titre: texteSur(o.titre),
-    brouillon: contenuSur(o.brouillon),
+    /* UNE FICHE VALIDÉE SE GARDE SANS BROUILLON (voir `ficheAllegee`) : à la
+       lecture, son brouillon est la copie de sa version validée. */
+    brouillon: o.brouillon === undefined && validee ? copieDuContenu(validee.contenu) : contenuSur(o.brouillon),
     ...(texteSur(o.brouillonLe) ? { brouillonLe: texteSur(o.brouillonLe) } : {}),
     ...(texteSur(o.brouillonPar) ? { brouillonPar: texteSur(o.brouillonPar) } : {}),
     ...(validee ? { validee } : {}),
@@ -347,6 +263,27 @@ const memeContenu = (a: ContenuDeFiche, b: ContenuDeFiche): boolean =>
 /** Le brouillon a-t-il bougé depuis la version validée ? */
 export const brouillonDiffere = (f: FicheDeProcedure): boolean =>
   !f.validee || !memeContenu(f.brouillon, f.validee.contenu);
+
+/* ══ CE QUE LE DOCUMENT GARDE ════════════════════════════════════════════
+   Le Trône garde chaque document dans la mémoire du navigateur, qui n'accorde
+   qu'environ cinq millions de caractères à tout le site (`poids-de-la-
+   memoire`), sur chaque poste, téléphones de l'équipe compris. Quatre-vingt-
+   seize fiches gardées deux fois (le brouillon, puis sa copie validée) en
+   prendraient plus d'un dixième.
+
+   UNE FICHE VALIDÉE DONT LE BROUILLON N'A PAS BOUGÉ SE GARDE UNE SEULE FOIS :
+   sa version validée. Le brouillon ne s'écrit que lorsqu'il diffère (la
+   direction corrige) ou qu'aucune version n'est encore validée. `ficheSure`
+   le rend à la lecture. */
+export type FicheGardee = Omit<FicheDeProcedure, 'brouillon'> & { brouillon?: ContenuDeFiche };
+export type LesFichesGardees = Record<string, FicheGardee>;
+
+export function ficheAllegee(f: FicheDeProcedure): FicheGardee {
+  if (!f.validee || brouillonDiffere(f)) return f;
+  const { brouillon: _b, brouillonLe: _le, brouillonPar: _par, ...reste } = f;
+  void _b; void _le; void _par;
+  return reste;
+}
 
 export type EtatDeLaFiche = 'a-ecrire' | 'brouillon' | 'validee' | 'validee-et-brouillon';
 

@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
    node scripts/fiches-de-procedure/reglage.mjs --fiches <fiches.json> --sortie <fichier.sql>
         [--seulement id,id]   ne pose que ces fiches
         [--valide id,id]      celles-ci partent VALIDÉES (version 1), les autres en brouillon
+        [--par "…"]           qui signe les versions validées
         [--prestations]       crée aussi les deux prestations offertes et les masque du site
         --quoi "…"            la phrase qui dit, en tête du fichier, ce que ce réglage fait
 
@@ -32,7 +33,8 @@ const quoi = arg('--quoi');
 if (!fichier || !sortie || !quoi) { console.error('Il faut --fiches, --sortie et --quoi.'); process.exit(2); }
 
 export const MARQUE_DE_LA_RECHERCHE = 'Recherche du 25 novembre 2026';
-const SIGNATURE = 'la direction (décision confiée à Claude le 25 novembre 2026)';
+/* Qui signe la version validée : `--par "…"`, sinon la décision confiée du 25 novembre 2026. */
+const SIGNATURE = arg('--par') ?? 'la direction (décision confiée à Claude le 25 novembre 2026)';
 const maintenant = new Date().toISOString();
 const jour = maintenant.slice(0, 10).replace(/-/g, '');
 
@@ -44,17 +46,21 @@ for (const id of [...seulement, ...aValider]) {
   if (!retenues.some((f) => f.serviceId === id)) { console.error(`Fiche introuvable : ${id}`); process.exit(2); }
 }
 
+/* CE QUE CHAQUE POSTE GARDE EN MÉMOIRE DOIT RESTER LÉGER (`ficheAllegee`,
+   fiches-de-procedure-pur) : une fiche VALIDÉE part sans brouillon (le Trône
+   le retrouve à la lecture) et sans ses références, qui restent ici, dans les
+   familles, et sur la page de validation. Un BROUILLON garde tout. */
+const RUBRIQUES = ['objectif', 'public', 'produits', 'arrivee', 'etapes', 'conseils', 'suivi'];
+const sansReferences = (contenu) => Object.fromEntries(RUBRIQUES.map((r) => [r, (contenu[r] ?? []).map(({ ref: _ref, ...ligne }) => ligne)]));
 const document = {};
 for (const f of retenues) {
   const propre = Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_')));
-  document[f.serviceId] = {
-    ...propre,
-    brouillonLe: maintenant,
-    brouillonPar: MARQUE_DE_LA_RECHERCHE,
-    ...(aValider.includes(f.serviceId)
-      ? { validee: { numero: 1, le: maintenant, par: SIGNATURE, contenu: f.brouillon } }
-      : {}),
-  };
+  if (aValider.includes(f.serviceId)) {
+    const { brouillon, ...identite } = propre;
+    document[f.serviceId] = { ...identite, validee: { numero: 1, le: maintenant, par: SIGNATURE, contenu: sansReferences(brouillon) } };
+  } else {
+    document[f.serviceId] = { ...propre, brouillonLe: maintenant, brouillonPar: MARQUE_DE_LA_RECHERCHE };
+  }
 }
 
 const json = (v) => {

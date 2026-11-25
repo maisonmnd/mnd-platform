@@ -5,7 +5,7 @@ import { useStaff as useMaTete } from '../../../../shared/auth';
 import { uid } from '../../../../shared/store';
 import { enregistreLeBrouillon, useFichesDeProcedure } from '../../../../shared/fiches-de-procedure';
 import {
-  MOT_DE_L_ETAT_DE_LA_FICHE, RUBRIQUES, contenuSur, copieDuContenu, etatDeLaFiche, ficheDeLaPrestation,
+  MOT_DE_L_ETAT_DE_LA_FICHE, MOT_DE_L_ORIGINE, RUBRIQUES, contenuSur, copieDuContenu, etatDeLaFiche, ficheDeLaPrestation,
   ficheDepuisLeCatalogue, nomSansLongueur, pointsAValider, rubriquesVides,
   type ContenuDeFiche, type EtatDeLaFiche, type FicheDeProcedure, type LigneDeFiche, type RubriqueId,
 } from '../../../../shared/fiches-de-procedure-pur';
@@ -226,7 +226,8 @@ function EditeurDeLaFiche({ soin, enregistree, depart, par, onSale }: {
   const majLigne = (r: RubriqueId, id: string, patch: Partial<LigneDeFiche>) =>
     touche({ ...contenu, [r]: contenu[r].map((l) => (l.id === id ? { ...l, ...patch } : l)) });
   const retire = (r: RubriqueId, id: string) => touche({ ...contenu, [r]: contenu[r].filter((l) => l.id !== id) });
-  const ajoute = (r: RubriqueId) => touche({ ...contenu, [r]: [...contenu[r], { id: `l-${uid()}`, texte: '' }] });
+  /* Une ligne ajoutée ici est une décision de la Maison : elle le porte. */
+  const ajoute = (r: RubriqueId) => touche({ ...contenu, [r]: [...contenu[r], { id: `l-${uid()}`, texte: '', source: 'maison' }] });
   const monte = (r: RubriqueId, i: number) => {
     if (i <= 0) return;
     const l = [...contenu[r]];
@@ -348,6 +349,9 @@ function EditeurDeLaFiche({ soin, enregistree, depart, par, onSale }: {
                     </button>
                     {i > 0 && <button type="button" className="tfp-lien" onClick={() => monte(r.id, i)}>Monter</button>}
                     <button type="button" className="tfp-lien" onClick={() => retire(r.id, l.id)}>Retirer</button>
+                    {/* D'OÙ VIENT LA LIGNE : le catalogue, le Laboratoire, la Maison,
+                        une notice ou la pratique relevée par une recherche. */}
+                    {l.source && <span className="tfp-origine" title={l.ref}>{MOT_DE_L_ORIGINE[l.source]}</span>}
                   </div>
                 </div>
               ))}

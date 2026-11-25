@@ -35,6 +35,9 @@ export const RUBRIQUES = ['objectif', 'public', 'produits', 'arrivee', 'etapes',
 
 const ligne = (source) => (texte, o = {}) => {
   const opts = typeof o === 'string' ? { ref: o } : o;
+  /* UNE RÉFÉRENCE MAL NOMMÉE NE DISPARAÎT PAS EN SILENCE (`REFS.FAUTE` vaut
+     `undefined`) : la ligne perdrait sa source sans que personne le voie. */
+  if (Object.hasOwn(opts, 'ref') && !opts.ref) throw new Error(`Référence inconnue sur la ligne « ${String(texte).slice(0, 60)} » : vérifier son nom dans refs.mjs.`);
   return {
     texte: String(texte).trim(),
     source,

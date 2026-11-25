@@ -118,6 +118,32 @@ const pad = (n) => String(n).padStart(2, '0');
 const AUJ = (() => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; })();
 const SOWA = '1740l5ysxj';
 const CLE_DES_FICHES = 'trone::mnd_fiches_de_procedure';
+/* LE BROUILLON D'EXEMPLE. Le code ne porte plus aucune fiche (elles vivent en
+   base) : le banc pose la sienne, courte, avec ses origines, une seconde case
+   chiffrée venue d'une notice, et trois points signalés. */
+const ligneDuBanc = (id, texte, plus = {}) => ({ id, texte, source: 'maison', ...plus });
+const BROUILLON_DU_BANC = {
+  serviceId: SOWA, titre: 'Rituel Sówà™ · Rituel anti-poux Maison MND', brouillonLe: le, brouillonPar: 'Recherche du banc',
+  brouillon: {
+    objectif: [ligneDuBanc('ob-1', 'Éliminer les poux des locks.', { source: 'catalogue' })],
+    public: [ligneDuBanc('pu-1', 'À partir de 6 mois.', { source: 'notice', ref: 'Fabricant · exemple.test/notice' })],
+    produits: [
+      ligneDuBanc('pr-1', 'Pouxit XF, lotion. Pouxit seul.', { source: 'notice', detail: 'Pouxit XF lotion', ref: 'Fabricant · exemple.test/notice' }),
+      ligneDuBanc('pr-2', 'Produit du lavage.', { aValider: 'À inscrire.' }),
+    ],
+    arrivee: [ligneDuBanc('ar-1', 'Examiner le cuir chevelu.', { source: 'catalogue' })],
+    etapes: [
+      ligneDuBanc('et-1', 'Appliquer lock par lock.', { source: 'notice' }),
+      ligneDuBanc('et-2', 'Laisser agir.', { source: 'notice', detail: '15 minutes' }),
+      ligneDuBanc('et-3', 'Pour un enfant : la Couronne Cocon.', { aValider: 'Sa forme : à décrire.' }),
+    ],
+    conseils: [
+      ligneDuBanc('co-1', 'Revenir à J+7 ; le soin DÀNDÀN™ est recommandé.'),
+      ligneDuBanc('co-2', 'Conseils à la maison.', { aValider: 'À écrire.' }),
+    ],
+    suivi: [ligneDuBanc('su-1', 'Offert : le contrôle à J+7.')],
+  },
+};
 const session = (role, nom) => ({
   [CLE]: { access_token: 'faux', refresh_token: 'faux', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) - 7200,
     user: { id: UID, email: 'banc@exemple.bj', aud: 'authenticated', role: 'authenticated', app_metadata: {}, user_metadata: {}, created_at: le } },
@@ -174,7 +200,7 @@ try {
   await attend(2500);
 
   /* ══ EN DIRECTION ══════════════════════════════════════════════════ */
-  await seme({ ...session('souverain', 'Direction du banc'), ...MAISON }, [CLE_DES_FICHES]);
+  await seme({ ...session('souverain', 'Direction du banc'), ...MAISON, [CLE_DES_FICHES]: { [SOWA]: BROUILLON_DU_BANC } });
   await va('#/catalogue');
   dit('direction : le Catalogue offre « Les fiches de procédure »', await clique('button', 'Les fiches de procédure'));
   await attend(900);
@@ -189,8 +215,10 @@ try {
   dit('reliée à la prestation du catalogue', (await texte('.tfp-entete__lien')).startsWith('Reliée à la prestation : Rituel Sówà™'), await texte('.tfp-entete__lien'));
   dit('en brouillon : l’équipe ne la voit pas encore', (await texte('.tfp-entete__version')) === 'Brouillon : l’équipe ne le voit pas encore.', await texte('.tfp-entete__version'));
   const signalees = await compte('.tfp-saisie.est-a-valider');
-  dit('ses points à valider sont signalés (plus de dix)', signalees >= 10, signalees);
-  dit('aucun temps de pose chiffré dans la saisie', !(await evalue(`[...document.querySelectorAll('.tfp-saisie__detail')].some((i) => /\\d/.test(i.value))`)));
+  dit('ses trois points à valider sont signalés', signalees === 3, signalees);
+  dit('chaque ligne dit d’où elle vient', (await evalue(`[...document.querySelectorAll('.tfp-origine')].map((x) => x.textContent)`)).includes('notice du fabricant')
+    && (await compte('.tfp-origine')) === 11, await compte('.tfp-origine'));
+  dit('le temps de pose de la notice se lit dans sa case', await evalue(`[...document.querySelectorAll('.tfp-saisie__detail')].some((i) => i.value === '15 minutes')`));
   await photo('2-la-fiche-sowa-a-corriger');
   dit('« Lire le brouillon » montre la fiche comme l’équipe la lira', await clique('.mnd-seg', 'Lire le brouillon'));
   await attend(400);
@@ -206,6 +234,9 @@ try {
   await attend(900);
   const doc = await lis(CLE_DES_FICHES);
   ficheValidee = doc?.[SOWA] ?? null;
+  /* Chaque poste garde ce document en mémoire : une fiche validée, brouillon inchangé, se garde une seule fois. */
+  dit('la fiche validée se garde sans brouillon', !!ficheValidee && !('brouillon' in ficheValidee) && ficheValidee.validee?.contenu?.etapes?.length === 3,
+    ficheValidee ? Object.keys(ficheValidee).join(',') : 'absente');
   dit('la version 1 est signée du nom de la direction', ficheValidee?.validee?.numero === 1 && ficheValidee?.validee?.par === 'Direction du banc' && !!ficheValidee?.validee?.le,
     JSON.stringify({ numero: ficheValidee?.validee?.numero, par: ficheValidee?.validee?.par }));
   dit('la liste la dit validée', (await textes('.tfp-soin')).some((l) => l.startsWith('Rituel Sówà™') && l.endsWith('validée')), (await textes('.tfp-soin')).join(' | '));
@@ -236,7 +267,7 @@ try {
 
   /* ══ DANS L'ÉQUIPE ═════════════════════════════════════════════════ */
   /* Tant que la fiche est en brouillon : aucun bouton. */
-  await seme({ ...session('maitre', 'Maître du banc') }, [CLE_DES_FICHES]);
+  await seme({ ...session('maitre', 'Maître du banc'), [CLE_DES_FICHES]: { [SOWA]: BROUILLON_DU_BANC } });
   await va('#/calendrier');
   dit('équipe : le rendez-vous Sówà s’ouvre', await ouvreLeRdv('Sènami'));
   dit('fiche en brouillon : pas de bouton, l’équipe ne lit pas un brouillon', (await compte('.tfp-voir')) === 0 && (await compte('.trc-rdv3__barre')) === 1);
@@ -253,7 +284,7 @@ try {
   dit('la fiche s’ouvre par-dessus', (await clique('.tfp-voir', 'Voir le protocole')) && (await attend(700), true) && (await compte('.mnd-modal')) === 2);
   dit('… signée, sans brouillon ni « Valider »', /^Version 1, validée le /.test(await texte('.mnd-modal .tfp-entete__version'))
     && (await compte('.tfp-bandeau--brouillon')) === 0 && !(await evalue(`[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Valider cette version')`)));
-  dit('… « Pouxit seul » et « selon la notice » se lisent', await evalue(`(() => { const t = [...document.querySelectorAll('.mnd-modal')].pop().innerText; return t.includes('Pouxit seul') && t.includes('Selon la notice du produit') && t.includes('J+7') && t.includes('Couronne Cocon') && t.includes('DÀNDÀN™'); })()`));
+  dit('… le produit, son temps de pose et la suite se lisent', await evalue(`(() => { const t = [...document.querySelectorAll('.mnd-modal')].pop().innerText; return t.includes('Pouxit seul') && t.includes('15 minutes') && t.includes('J+7') && t.includes('Couronne Cocon') && t.includes('DÀNDÀN™'); })()`));
   await photo('8-equipe-le-protocole');
 
   /* Au téléphone. */

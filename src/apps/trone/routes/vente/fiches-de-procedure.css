@@ -119,6 +119,7 @@
 .tfp-saisie__gestes { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .tfp-lien { background: none; border: 0; padding: 2px 0; cursor: pointer; font: inherit; font-size: 11.5px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
 .tfp-lien:hover { color: var(--color-indigo); }
+.tfp-origine { margin-left: auto; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .tfp-ajoute {
   margin-top: 8px; border: 1px dashed var(--copper-300); background: none; color: var(--color-indigo);
   border-radius: 3px; font: inherit; font-size: 12px; padding: 7px 12px; cursor: pointer;
