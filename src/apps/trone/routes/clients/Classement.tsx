@@ -8,7 +8,7 @@ import { usePlans, useSubscribers } from '../../../../shared/abonnements';
 import { uid } from '../../../../shared/store';
 import { useClassement } from '../../../../shared/classement';
 import {
-  CHAMPS, CRITERES_PROPOSES, ETAPES, GROUPES_DE_LIEU, LIEUX, MARQUES, RYTHMES,
+  CHAMPS, CRITERES_PROPOSES, ETAPES, LA_PRIVILEGIEE_DITE, LIEUX, MARQUES, RYTHMES,
   abonnementActif, carteDeLaVue, classeLaCliente, definitionDeLaVue, ficheDuClassement, jourDit, joursEntre, optionsDuChamp, villeADeduire,
   type CategorieDeLaMaison, type ChampDeCritere, type ChoixDuParcours, type CriteresDuClassement,
   type FicheDuClassement, type Libelle, type ResultatDuClassement,
@@ -64,7 +64,11 @@ export default function Classement() {
   const [brouillonsCat, setBrouillonsCat] = useState<Record<string, CategorieDeLaMaison>>({});
   const p = brouillonP ?? reglages.criteres;
   const categories = useMemo(() => reglages.categories.map((c) => brouillonsCat[c.id] ?? c), [reglages.categories, brouillonsCat]);
-  const etapes: Libelle[] = useMemo(() => [...ETAPES, ...categories.filter((c) => c.type === 'etape').map((c) => ({ cle: c.id, nom: c.nom }))], [categories]);
+  /* CINQ CATÉGORIES (25 novembre 2026) : les cinq, puis celles de la Maison,
+     puis « Sans catégorie », qui ferme la colonne. */
+  const etapes: Libelle[] = useMemo(() => [
+    ...ETAPES.filter((e) => e.cle !== 'hors'), ...categories.filter((c) => c.type === 'etape').map((c) => ({ cle: c.id, nom: c.nom })), ...ETAPES.filter((e) => e.cle === 'hors'),
+  ], [categories]);
   const marques: Libelle[] = useMemo(() => [...MARQUES, ...categories.filter((c) => c.type === 'marque').map((c) => ({ cle: c.id, nom: c.nom }))], [categories]);
 
   const fiches = useMemo(() => {
@@ -137,23 +141,11 @@ export default function Classement() {
     <nav className="trc-cl-nav" aria-label="Catégories du classement">
       {bouton('criteres', 'Les critères', null, 'is-criteres')}
       {bouton('tout', 'Toutes les fiches', fiches.length, 'is-speciale')}
-      <div className="trc-cl-axe">L’étape</div>
-      {etapes.map((e) => bouton(`e:${e.cle}`, e.nom, compte((r) => r.etape === e.cle)))}
-      <div className="trc-cl-axe">Le lieu</div>
-      {GROUPES_DE_LIEU.map((g) => {
-        const sous = LIEUX.filter((l) => l.groupe === g.cle);
-        return [
-          bouton(`g:${g.cle}`, g.nom, compte((r) => r.groupe === g.cle)),
-          ...(sous.length > 1 ? sous.map((l) => bouton(`l:${l.cle}`, l.nom, compte((r) => r.lieu === l.cle), 'is-sous')) : []),
-        ];
-      })}
-      <div className="trc-cl-axe">Le rythme</div>
-      {RYTHMES.map((x) => bouton(`r:${x.cle}`, x.nom, compte((r) => r.rythme === x.cle)))}
-      <div className="trc-cl-axe">Les marques</div>
-      {marques.map((x) => bouton(`m:${x.cle}`, x.nom, compte((r) => r.marques.includes(x.cle))))}
-      <div className="trc-cl-axe">À voir</div>
-      {bouton('annulations', 'Toutes les annulations', fiches.filter((f) => f.annulations.length > 0).length, 'is-speciale')}
-      {bouton('modifiees', 'Fiches modifiées', fiches.filter(estModifiee).length, 'is-speciale')}
+      <div className="trc-cl-axe">Les catégories</div>
+      {etapes.map((e) => bouton(`e:${e.cle}`, e.nom, compte((r) => r.etape === e.cle), e.cle === 'hors' ? 'is-speciale' : ''))}
+      {/* Une marque que la Maison créerait reste visible. */}
+      {marques.some((x) => categories.some((c) => c.id === x.cle)) && <div className="trc-cl-axe">Vos marques</div>}
+      {marques.filter((x) => categories.some((c) => c.id === x.cle)).map((x) => bouton(`m:${x.cle}`, x.nom, compte((r) => r.marques.includes(x.cle))))}
     </nav>
   );
 
@@ -162,7 +154,7 @@ export default function Classement() {
       <PageHead
         eyebrow={`Le Trône · ${branch.city}`}
         title="Le classement des clientes"
-        sub="Chaque cliente a une étape (où elle en est), un lieu (où elle vit), un rythme (à quelle cadence elle vient) et des marques. Les critères se règlent ici ; un choix posé dans son dossier passe avant eux."
+        sub="Chaque cliente se range dans une catégorie : la Privilégiée, la Régulière, l’Annulée, la Dormante ou la Diaspora. Les critères se règlent ici ; un choix posé dans son dossier passe avant eux."
       />
       <div className="trc-cl-grille">
         {nav}
@@ -208,20 +200,15 @@ function VueCriteres(o: {
   const n = (k: keyof CriteresDuClassement, min: number, max: number) => <Nombre valeur={p[k] as number} min={min} max={max} onChange={(v) => c(k, v)} label={String(k)} />;
   const parEtape = (cle: string) => compte((r) => r.etape === cle);
   const phrases: Record<string, ReactNode> = {
-    hors: <>Seuls les rappels de rendez-vous partent. Elle y entre si : <Coche coche={p.hors_stop} onChange={(b) => c('hors_stop', b)}>elle a dit STOP</Coche><Coche coche={p.hors_locks} onChange={(b) => c('hors_locks', b)}>elle a défait ses locks</Coche><Coche coche={p.hors_passage_pose} onChange={(b) => c('hors_passage_pose', b)}>la Maison l’a marquée « de passage » à la main</Coche> (et toujours : la fiche d’essai).</>,
-    abonnee: <>Une formule active (Carnet, Lune, Année…) dont l’échéance n’est pas passée. Ses relances suivent ses séances ; la marque « Abonnée sans prochaine séance » dit celles qui ont oublié de réserver.</>,
+    privilegiee: <>{LA_PRIVILEGIEE_DITE} Le Trône ne la devine pas : on l’y range depuis son dossier (« Catégorie »), et ce choix passe avant tous les critères.</>,
+    hors: <>Ce n’est pas une catégorie. Y restent les fiches jamais venues (même avec un rendez-vous à venir), la fiche d’essai, et celles où : <Coche coche={p.hors_stop} onChange={(b) => c('hors_stop', b)}>elle a dit STOP</Coche><Coche coche={p.hors_locks} onChange={(b) => c('hors_locks', b)}>elle a défait ses locks</Coche><Coche coche={p.hors_passage_pose} onChange={(b) => c('hors_passage_pose', b)}>la Maison l’a marquée « de passage » à la main</Coche></>,
     annulee: <>Une annulation il y a {n('annulee_jours', 1, 365)} jours au plus, et ni visite ni rendez-vous depuis. <Coche coche={p.annulee_absences} onChange={(b) => c('annulee_absences', b)}>un rendez-vous passé resté « confirmé » compte comme une absence</Coche></>,
-    reservee: <>Aucune visite, un rendez-vous à venir.</>,
-    curieuse: <>Aucune visite, aucun rendez-vous, une fiche créée il y a {n('curieuse_jours', 1, 1000)} jours au plus.</>,
-    'ancien-contact': <>Aucune visite, aucun rendez-vous, une fiche plus ancienne que la Curieuse : plus de relance, seulement les nouvelles si elle a dit oui.</>,
-    premiere: <>Une seule visite, il y a {n('premiere_jours', 1, 365)} jours au plus.</>,
-    disparue: <>Une seule visite, plus ancienne. Les fiches marquées « de passage » par le Trône : <select className="trc-cl-choix" value={p.de_passage} onChange={(e) => c('de_passage', e.target.value as CriteresDuClassement['de_passage'])} aria-label="de passage"><option value="disparue">relancées comme Disparue</option><option value="hors">laissées hors parcours</option></select>.</>,
-    couronne: <>Deux visites ou plus, la dernière il y a moins que son rythme plus {n('marge', 0, 90)} jours. Son rythme : choisi par la Maison, sinon déclaré, sinon mesuré ; à défaut, celui de la Maison, {n('rythme_maison', 7, 365)} jours.</>,
-    annuelle: <>Son rythme est de {n('annuelle_rythme', 60, 400)} jours ou plus (ou la Maison a choisi « une » ou « deux fois par an »), et elle est dans son rythme, avec {n('annuelle_marge', 0, 180)} jours de marge. Ce n’est pas une dormante.</>,
-    glisse: <>Au-delà de son rythme et de sa marge, mais venue il y a {n('dormante_jours', 30, 720)} jours au plus.</>,
-    dormante: <>Plus longtemps sans venir que la limite de « Elle glisse », ou au-delà de son rythme annuel et de sa marge.</>,
-    diaspora: <Coche coche={p.diaspora_remplace} onChange={(b) => c('diaspora_remplace', b)}>Une cliente qui vit à l’étranger et qui glisse, dort ou a disparu entre ici : ses relances suivent ses séjours.</Coche>,
+    diaspora: <><Coche coche={p.diaspora_remplace} onChange={(b) => c('diaspora_remplace', b)}>Une cliente qui vit à l’étranger entre ici : ses relances suivent ses séjours.</Coche> On le sait par le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora, ou <Coche coche={p.numero_suffit} onChange={(b) => c('numero_suffit', b)}>un numéro étranger</Coche></>,
+    dormante: <>Sa dernière visite date de plus de {n('dormante_jours', 30, 720)} jours. Celle qui vient une ou deux fois par an (un rythme de {n('annuelle_rythme', 60, 400)} jours ou plus) n’y entre qu’au-delà de son rythme et de {n('annuelle_marge', 0, 180)} jours de marge.</>,
+    reguliere: <>Toutes les autres : elle est venue, et sa dernière visite date de {p.dormante_jours} jours au plus (le chiffre se règle dans « La Dormante »), ou elle reste dans son rythme d’une ou deux fois par an.</>,
   };
+  /** L'ordre des règles : la première qui s'applique l'emporte. */
+  const REGLES = ['privilegiee', 'hors', 'annulee', 'diaspora', 'dormante', 'reguliere'];
   const carte = (titre: string, ordre: number | null, phrase: ReactNode, nb: number, key: string) => (
     <div className="trc-cl-critere" key={key} id={key}>
       <div className="trc-cl-critere__titre">{ordre != null && <span className="trc-cl-ordre">{ordre}</span>}{titre}</div>
@@ -240,40 +227,13 @@ function VueCriteres(o: {
       </div>
       <p className="trc-cl-intro">Ce qui fait entrer une cliente dans chaque catégorie. Changez un nombre : les comptes suivent aussitôt, sur les {o.total} fiches.</p>
       <section className="trc-cl-bloc">
-        <h3>L’étape : où elle en est avec la Maison</h3>
-        <p>Une seule étape par cliente. Les règles se lisent dans cet ordre, la première qui s’applique l’emporte ; vos catégories d’étape passent juste après « Hors parcours ».</p>
-        {ETAPES.map((e, i) => carte(e.nom, i, phrases[e.cle], parEtape(e.cle), `def-e:${e.cle}`))}
-      </section>
-      <section className="trc-cl-bloc">
-        <h3>Le lieu : où elle vit</h3>
-        <p>Dans cet ordre : le lieu choisi dans son dossier ; la ville de sa fiche ; la marque diaspora ; l’indicatif du numéro (le +1 distingue le Canada des États-Unis par l’indicatif régional).</p>
-        {carte('La diaspora', null, <><Coche coche={p.numero_suffit} onChange={(b) => c('numero_suffit', b)}>un numéro étranger suffit</Coche> Sinon, il faut la marque diaspora, une ville à l’étranger, ou le choix de la Maison. Sous-catégories : France, Canada, États-Unis, Afrique, Europe, autre.</>, compte((r) => r.groupe === 'diaspora'), 'def-g:diaspora')}
-        {carte('Hors Cotonou', null, <>Calavi, Porto-Novo, Bohicon ou une autre ville du Bénin, lue dans la ville de la fiche ou choisie par la Maison. Moins disponibles qu’à Cotonou.</>, compte((r) => r.groupe === 'hors'), 'def-g:hors')}
-        {carte('Ville à préciser', null, <>Un numéro du Bénin sans ville sur la fiche : <select className="trc-cl-choix" value={p.ville_inconnue} onChange={(e) => c('ville_inconnue', e.target.value as CriteresDuClassement['ville_inconnue'])} aria-label="ville inconnue"><option value="a-preciser">à préciser</option><option value="cotonou">compté à Cotonou</option></select>. La ville se choisit dans la liste de son profil.</>, compte((r) => r.groupe === 'benin'), 'def-g:benin')}
-        {carte('Cotonou', null, <>La ville de la fiche (un quartier de Cotonou compte) ou le choix de la Maison.</>, compte((r) => r.groupe === 'cotonou'), 'def-g:cotonou')}
-      </section>
-      <section className="trc-cl-bloc">
-        <h3>Le rythme : à quelle cadence elle vient</h3>
-        <p>Le rythme choisi dans son dossier (« une fois par an », « deux fois par an ») passe avant celui déclaré sur la fiche, qui passe avant l’écart habituel mesuré entre ses visites.</p>
-        {carte('Régulière', null, <>Une visite tous les {n('reguliere_max', 14, 150)} jours ou moins.</>, compte((r) => r.rythme === 'reguliere'), 'def-r:reguliere')}
-        {carte('Espacée', null, <>Entre les deux.</>, compte((r) => r.rythme === 'espacee'), 'def-r:espacee')}
-        {carte('Annuelle', null, <>Une ou deux visites par an : un rythme de {p.annuelle_rythme} jours ou plus (réglé dans « L’Annuelle »), ou choisi par la Maison.</>, compte((r) => r.rythme === 'annuelle'), 'def-r:annuelle')}
-        {carte('Pas encore connu', null, <>Moins de deux visites, et aucun rythme choisi.</>, compte((r) => r.rythme === 'inconnu'), 'def-r:inconnu')}
-      </section>
-      <section className="trc-cl-bloc">
-        <h3>Les marques : ce qu’il faut savoir</h3>
-        <p>Une cliente peut en porter plusieurs ; elles changent le ton d’un parcours, pas son étape.</p>
-        {carte('Annule souvent', null, <>Au moins {n('annule_nb', 1, 20)} annulations sur {n('annule_mois', 1, 36)} mois. <Coche coche={p.annule_absences} onChange={(b) => c('annule_absences', b)}>les rendez-vous restés « confirmés » comptent aussi</Coche></>, compte((r) => r.marques.includes('annule-souvent')), 'def-m:annule-souvent')}
-        {carte('Abonnée sans prochaine séance', null, <>Une formule active et aucun rendez-vous à venir : elle a oublié de réserver.</>, compte((r) => r.marques.includes('abonnee-sans-rdv')), 'def-m:abonnee-sans-rdv')}
-        {carte('Rendez-vous restés « confirmés »', null, <>Un rendez-vous passé jamais marqué « honoré » : une venue à marquer, ou une absence. À ranger avant le départ des relances.</>, compte((r) => r.marques.includes('absences')), 'def-m:absences')}
-        {carte('Ancienne abonnée', null, <>Une formule terminée ou épuisée, et aucune autre active.</>, compte((r) => r.marques.includes('ancienne-abonnee')), 'def-m:ancienne-abonnee')}
-        {carte('Diaspora à confirmer', null, <>Un numéro étranger sans marque diaspora ni lieu choisi : à confirmer dans son dossier.</>, compte((r) => r.marques.includes('diaspora-a-confirmer')), 'def-m:diaspora-a-confirmer')}
-        {carte('Sans numéro', null, <>Aucun numéro utilisable : aucune relance possible, à compléter dans son profil.</>, compte((r) => r.marques.includes('sans-numero')), 'def-m:sans-numero')}
-        {carte('Marquée « de passage »', null, <>La marque du Trône pour une venue sans relation engagée ; elle se lève seule à la deuxième visite.</>, compte((r) => r.marques.includes('de-passage')), 'def-m:de-passage')}
+        <h3>Les cinq catégories</h3>
+        <p>Une seule catégorie par cliente. Les règles se lisent dans cet ordre, la première qui s’applique l’emporte ; vos catégories passent juste après « Sans catégorie ».</p>
+        {REGLES.map((cle, i) => carte(nomDans(ETAPES, cle), i + 1, phrases[cle], parEtape(cle), `def-e:${cle}`))}
       </section>
       <section className="trc-cl-bloc">
         <h3>Vos catégories</h3>
-        <p>Créez une catégorie, donnez-lui ses critères (tous doivent tenir), et dites si c’est une étape ou une marque. Sans critère, on y range une fiche depuis son dossier.</p>
+        <p>Si les cinq ne suffisent pas : créez une catégorie, donnez-lui ses critères (tous doivent tenir), et dites si c’est une catégorie ou une marque. Sans critère, on y range une fiche depuis son dossier.</p>
         {o.categories.map((cat) => (
           <EditeurDeCategorie key={cat.id} cat={cat} modifiee={!!o.brouillonsCat[cat.id]} change={(fn) => o.changeCat(cat.id, fn)}
             enregistre={() => o.enregistreCat(cat.id)} supprime={() => o.supprimeCat(cat.id)}
@@ -355,33 +315,26 @@ function VueListe(o: {
   const k = vue.slice(2);
   const [titre, regle] = ((): [string, string] => {
     if (vue === 'tout') return ['Toutes les fiches', 'La plus récemment venue d’abord. Touchez un nom pour ouvrir son dossier.'];
-    if (vue === 'annulations') return ['Toutes les annulations', 'Chaque cliente qui a eu un rendez-vous annulé, la plus récente d’abord, et ce qui s’est passé depuis.'];
-    if (vue === 'modifiees') return ['Fiches modifiées', 'Les fiches dont l’étape, le lieu, le rythme ou la note a été posé dans le dossier.'];
     if (vue.startsWith('e:')) { const cat = o.categories.find((c) => c.id === k); return [nomDans(o.etapes, k), cat ? (cat.regle || (cat.criteres.length ? '' : 'Pas encore de critères : on y range une fiche depuis son dossier.')) : 'Ses critères se lisent dans « Les critères ».']; }
-    if (vue.startsWith('g:')) return [nomDans(GROUPES_DE_LIEU, k), 'Où elle vit : le choix de la Maison, la ville de la fiche, puis l’indicatif du numéro.'];
-    if (vue.startsWith('l:')) return [nomDans(LIEUX, k), ''];
-    if (vue.startsWith('r:')) return [nomDans(RYTHMES, k), 'Le rythme choisi dans son dossier, sinon déclaré, sinon l’écart habituel entre ses visites.'];
     if (vue.startsWith('m:')) { const cat = o.categories.find((c) => c.id === k); return [nomDans(o.marques, k), cat?.regle ?? '']; }
     return ['', ''];
   })();
   const filtre = (f: FicheDuClassement) => {
     const r = res(f);
     if (vue === 'tout') return true;
-    if (vue === 'annulations') return f.annulations.length > 0;
-    if (vue === 'modifiees') return o.estModifiee(f);
     if (vue.startsWith('e:')) return r.etape === k;
-    if (vue.startsWith('g:')) return r.groupe === k;
-    if (vue.startsWith('l:')) return r.lieu === k;
-    if (vue.startsWith('r:')) return r.rythme === k;
     if (vue.startsWith('m:')) return r.marques.includes(k);
     return false;
   };
   const q = sansAccents(o.cherche.trim());
   const liste = o.fiches.filter(filtre).filter((f) => !q || sansAccents(f.nom).includes(q));
-  if (vue === 'annulations') liste.sort((a, b) => b.annulations[b.annulations.length - 1].localeCompare(a.annulations[a.annulations.length - 1]));
+  /* L'ANNULÉE se lit par sa dernière annulation, la plus récente d'abord (le
+     rendez-vous resté « confirmé » compte : il peut seul l'y faire entrer). */
+  const derniereAnnulation = (f: FicheDuClassement): string => [...f.annulations, ...f.absences].sort().pop() ?? '';
+  if (vue === 'e:annulee') liste.sort((a, b) => derniereAnnulation(b).localeCompare(derniereAnnulation(a)) || a.nom.localeCompare(b.nom, 'fr'));
   else liste.sort((a, b) => (a.derniere ? joursEntre(a.derniere, aujourdhui) : -1) - (b.derniere ? joursEntre(b.derniere, aujourdhui) : -1) || a.nom.localeCompare(b.nom, 'fr'));
   const apres = (f: FicheDuClassement) => {
-    const der = f.annulations[f.annulations.length - 1];
+    const der = derniereAnnulation(f);
     if (f.prochain) return `rendez-vous le ${jourDit(f.prochain)}`;
     if (f.derniere && der && f.derniere > der) return `revenue le ${jourDit(f.derniere)}`;
     return 'rien depuis';
@@ -402,8 +355,12 @@ function VueListe(o: {
         {liste.length === 0 && <div className="trc-cl-vide">{o.cherche ? 'Aucun nom ne correspond.' : 'Personne ici pour l’instant.'}</div>}
         {liste.map((f) => {
           const r = res(f);
-          const meta = vue === 'annulations'
-            ? [`annulé : ${f.annulations.map(jourDit).join(', ')}`, apres(f)]
+          const meta = vue === 'e:annulee' && derniereAnnulation(f)
+            ? [
+              ...(f.annulations.length ? [`annulé : ${f.annulations.map(jourDit).join(', ')}`] : []),
+              ...(f.absences.length ? [`resté « confirmé » : ${f.absences.map(jourDit).join(', ')}`] : []),
+              apres(f),
+            ]
             : [`${f.visites} visite${f.visites > 1 ? 's' : ''}`, ...(f.derniere ? [`dernière le ${jourDit(f.derniere)} (${joursEntre(f.derniere, aujourdhui)} j)`] : []), ...(f.prochain ? [`rendez-vous le ${jourDit(f.prochain)}`] : [])];
           const ouvert = o.ouvert === f.id;
           return (
@@ -414,8 +371,6 @@ function VueListe(o: {
                 <span className="trc-cl-puces">
                   {!vue.startsWith('e:') && <span className="trc-cl-puce">{nomDans(o.etapes, r.etape)}</span>}
                   {!vue.startsWith('l:') && r.lieu !== 'cotonou' && <span className={`trc-cl-puce${r.groupe === 'diaspora' ? ' is-ok' : ''}`}>{nomDans(LIEUX, r.lieu)}</span>}
-                  {r.rythme === 'annuelle' && vue !== 'r:annuelle' && <span className="trc-cl-puce">annuelle</span>}
-                  {r.marques.filter((m) => m !== 'de-passage' && vue !== `m:${m}`).map((m) => <span key={m} className={`trc-cl-puce${m === 'abonnee-sans-rdv' || m === 'annule-souvent' ? ' is-alerte' : ''}`}>{nomDans(o.marques, m)}</span>)}
                   {o.estModifiee(f) && <span className="trc-cl-puce is-choix">choix de la Maison</span>}
                 </span>
               </button>
@@ -438,7 +393,7 @@ function Dossier({ f, r, etapes, marques, aujourdhui, poseLeChoix }: {
   const [note, setNote] = useState(f.choix.note ?? '');
   const abo = abonnementActif(f, aujourdhui);
   const faits: [string, string][] = ([
-    ['Étape', `${nomDans(etapes, r.etape)} · ${r.raisons.etape}`],
+    ['Catégorie', `${nomDans(etapes, r.etape)} · ${r.raisons.etape}`],
     ['Lieu', `${nomDans(LIEUX, r.lieu)} · ${r.raisons.lieu}`],
     ['Rythme', `${nomDans(RYTHMES, r.rythme)} · ${r.raisons.rythme}`],
     ['Visites', `${f.visites}${f.premiere ? `, du ${jourDit(f.premiere)} au ${jourDit(f.derniere)}` : ''}`],
@@ -454,7 +409,7 @@ function Dossier({ f, r, etapes, marques, aujourdhui, poseLeChoix }: {
     <div className="trc-cl-dossier">
       <dl className="trc-cl-faits">{faits.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
       <form className="trc-cl-form" onSubmit={(e) => { e.preventDefault(); poseLeChoix(f.id, { etape, lieu, rythme, note }); }}>
-        <label>Étape<Select value={etape} onChange={(e) => setEtape(e.target.value)}>
+        <label>Catégorie<Select value={etape} onChange={(e) => setEtape(e.target.value)}>
           <option value="">Selon les critères : {nomDans(etapes, r.etapeAuto)}</option>
           {etapes.filter((e) => e.cle !== r.etapeAuto).map((e) => <option key={e.cle} value={e.cle}>{e.nom}</option>)}
         </Select></label>

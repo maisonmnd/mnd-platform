@@ -9,7 +9,12 @@
    QUATRE AXES, UNE CLIENTE :
      · L'ÉTAPE — une seule, où elle en est avec la Maison. Les règles se lisent
        dans l'ordre ; la première qui s'applique l'emporte. Les catégories de
-       la Maison de type « étape » passent juste après « Hors parcours ».
+       la Maison de type « étape » passent juste après « Sans catégorie ».
+       CINQ CATÉGORIES depuis le 25 novembre 2026 (voir `ETAPES`) : la
+       Privilégiée, la Régulière, l'Annulée, la Dormante, la Diaspora. Le
+       lieu, le rythme et les marques se calculent toujours (le dossier les
+       dit, la Diaspora et le rythme annuel en dépendent), mais ne sont plus
+       des catégories de la colonne.
      · LE LIEU — où elle vit : Cotonou, Hors Cotonou (Calavi, Porto-Novo,
        Bohicon, autre ville), Bénin à préciser, la diaspora (France, Canada,
        États-Unis, Afrique, Europe, autre), ou inconnu. Le choix de la Maison,
@@ -65,20 +70,22 @@ export function criteresEnVigueur(poses: Partial<Record<keyof CriteresDuClasseme
 
 /* ── Le vocabulaire ─────────────────────────────────────────────────── */
 export type Libelle = { cle: string; nom: string };
+/* CINQ CATÉGORIES — 25 novembre 2026. « Je veux garder la diaspora, la
+   dormante, la régulière, l'annulée, la privilégiée (crée cette catégorie),
+   et supprime les autres et refaire le classement » (Yéman). La Curieuse, la
+   Réservée, la Première, la Disparue, la Couronne, l'Annuelle, Elle glisse,
+   l'Abonnée et le contact ancien sont partis ; leurs clientes se rangent
+   dans les cinq. « Sans catégorie » n'est pas une sixième catégorie : c'est
+   où restent une fiche sans visite, une fiche d'essai, et celle qui a dit
+   STOP (jamais relancée). L'ordre est celui de la colonne ; l'ordre des
+   règles se lit dans `classeLaCliente`. */
 export const ETAPES: readonly Libelle[] = [
-  { cle: 'hors', nom: 'Hors parcours' },
-  { cle: 'abonnee', nom: 'L’Abonnée' },
+  { cle: 'privilegiee', nom: 'La Privilégiée' },
+  { cle: 'reguliere', nom: 'La Régulière' },
   { cle: 'annulee', nom: 'L’Annulée' },
-  { cle: 'reservee', nom: 'La Réservée' },
-  { cle: 'curieuse', nom: 'La Curieuse' },
-  { cle: 'ancien-contact', nom: 'Le contact ancien' },
-  { cle: 'premiere', nom: 'La Première' },
-  { cle: 'disparue', nom: 'La Disparue' },
-  { cle: 'couronne', nom: 'La Couronne' },
-  { cle: 'annuelle', nom: 'L’Annuelle' },
-  { cle: 'glisse', nom: 'Elle glisse' },
   { cle: 'dormante', nom: 'La Dormante' },
   { cle: 'diaspora', nom: 'La Diaspora' },
+  { cle: 'hors', nom: 'Sans catégorie' },
 ];
 export type GroupeDeLieu = 'cotonou' | 'hors' | 'benin' | 'diaspora' | 'inconnu';
 export const LIEUX: readonly (Libelle & { groupe: GroupeDeLieu })[] = [
@@ -136,11 +143,10 @@ export const CHAMPS: Readonly<Record<ChampDeCritere, { nom: string; type: 'num' 
   abonnee: { nom: 'Abonnée active', type: 'bool' },
   dePassage: { nom: 'Marquée « de passage »', type: 'bool' },
 };
-/** Les deux catégories posées le 20 novembre 2026 dans la page du classement. */
-export const CATEGORIES_DE_DEPART: CategorieDeLaMaison[] = [
-  { id: 'a-definir', nom: 'À définir', regle: 'Une catégorie de la Maison, à nommer et à définir après ce premier travail. Rangez-y les fiches qui ne trouvent pas leur place, puis donnez-lui son nom et sa règle.', type: 'etape', criteres: [], ordre: 1 },
-  { id: 'retour-en-afro', nom: 'Retour en Afro', regle: '', type: 'etape', criteres: [], ordre: 2 },
-];
+/** Les catégories de la Maison d'un document neuf : aucune. « À définir » et
+    « Retour en Afro », posées le 20 novembre 2026, sont parties le 25 avec les
+    autres (« supprime les autres », Yéman). */
+export const CATEGORIES_DE_DEPART: CategorieDeLaMaison[] = [];
 
 /* ── Le choix posé dans le dossier ──────────────────────────────────── */
 export type ChoixDuParcours = { etape?: string; lieu?: string; rythme?: 'une-par-an' | 'deux-par-an' | ''; note?: string; le?: string; par?: string };
@@ -335,14 +341,24 @@ export function classeLaCliente(f: FicheDuClassement, p: CriteresDuClassement, c
   const v = valeurs(f, lieu, groupe, rythme, rj, t);
   const depuis = f.derniere ? joursEntre(f.derniere, t) : null;
   const abo = abonnementActif(f, t);
-  /* L'étape */
+  /* L'étape — CINQ CATÉGORIES (25 novembre 2026), dans cet ordre, la première
+     qui s'applique l'emporte. La Privilégiée n'a pas de règle : la Maison l'y
+     range depuis son dossier, et ce choix passe avant tout (plus bas).
+       1. Sans catégorie : fiche d'essai, STOP, locks défaits, « de passage »
+          posé à la main, ou aucune visite encore ;
+       2. les catégories d'étape de la Maison qui ont des critères ;
+       3. L'Annulée : une annulation récente, et rien depuis ;
+       4. La Diaspora : elle vit à l'étranger ;
+       5. La Dormante : trop longtemps sans venir (ou au-delà de son rythme
+          d'une ou deux fois par an) ;
+       6. La Régulière : toutes les autres, venues récemment. */
   let e: string | null = null; let raison = '';
   if (f.essai) { e = 'hors'; raison = 'fiche d’essai'; }
   else if (p.hors_stop && f.accord === 'stop') { e = 'hors'; raison = 'a dit STOP'; }
   else if (p.hors_locks && f.locksDefaits) { e = 'hors'; raison = 'a défait ses locks'; }
   else if (p.hors_passage_pose && f.passagePose) { e = 'hors'; raison = '« de passage » posé à la main'; }
+  else if (f.visites === 0) { e = 'hors'; raison = f.prochain ? `aucune visite encore, rendez-vous le ${jourDit(f.prochain)}` : 'aucune visite encore'; }
   if (!e) { const pr = [...categories].sort((a, b) => a.ordre - b.ordre).find((x) => x.type === 'etape' && tientTout(x, v)); if (pr) { e = pr.id; raison = 'ses critères'; } }
-  if (!e && abo) { e = 'abonnee'; raison = `formule active : ${abo.formule}${abo.fin ? `, jusqu’au ${jourDit(abo.fin)}` : ''}`; }
   if (!e) {
     const dates = [...f.annulations, ...(p.annulee_absences ? f.absences : [])].sort();
     const der = dates[dates.length - 1];
@@ -350,27 +366,15 @@ export function classeLaCliente(f: FicheDuClassement, p: CriteresDuClassement, c
       e = 'annulee'; raison = `${f.annulations.includes(der) ? 'annulé le' : 'rendez-vous resté « confirmé » le'} ${jourDit(der)}, aucune date depuis`;
     }
   }
-  if (!e && f.visites === 0) {
-    if (f.prochain) { e = 'reservee'; raison = `aucune visite, rendez-vous le ${jourDit(f.prochain)}`; }
-    else if (f.ficheDepuis && joursEntre(f.ficheDepuis, t) > p.curieuse_jours) { e = 'ancien-contact'; raison = `aucune visite, fiche du ${jourDit(f.ficheDepuis)}`; }
-    else { e = 'curieuse'; raison = 'aucune visite, aucun rendez-vous' + (f.ficheDepuis ? `, fiche du ${jourDit(f.ficheDepuis)}` : ''); }
-  }
-  if (!e && f.visites === 1 && rj == null) {
-    if ((depuis ?? 0) <= p.premiere_jours) { e = 'premiere'; raison = `une visite, il y a ${depuis} jours`; }
-    else if (f.dePassage && p.de_passage === 'hors') { e = 'hors'; raison = 'marquée « de passage »'; }
-    else { e = 'disparue'; raison = `une visite, il y a ${depuis} jours`; }
-  }
+  if (!e && p.diaspora_remplace && groupe === 'diaspora') { e = 'diaspora'; raison = `vit à l’étranger (${raisonLieu})`; }
   if (!e) {
-    const rr = rj ?? p.rythme_maison;
     const d = depuis ?? 0;
-    if (rr >= p.annuelle_rythme) {
-      if (d <= rr + p.annuelle_marge) { e = 'annuelle'; raison = `vient tous les ${rr} jours, dernière visite il y a ${d} jours`; }
-      else { e = 'dormante'; raison = `au-delà de son rythme annuel : ${d} jours`; }
-    } else if (d <= rr + p.marge) { e = 'couronne'; raison = `dans son rythme : ${d} jours pour ${rr}`; }
-    else if (d <= p.dormante_jours) { e = 'glisse'; raison = `${d} jours, son rythme est de ${rr}`; }
+    if (rj != null && rj >= p.annuelle_rythme) {
+      if (d <= rj + p.annuelle_marge) { e = 'reguliere'; raison = `vient une ou deux fois par an (tous les ${rj} jours), dernière visite il y a ${d} jours`; }
+      else { e = 'dormante'; raison = `au-delà de son rythme d’une ou deux fois par an : ${d} jours sans venir`; }
+    } else if (d <= p.dormante_jours) { e = 'reguliere'; raison = `dernière visite il y a ${d} jours`; }
     else { e = 'dormante'; raison = `${d} jours sans venir`; }
   }
-  if (p.diaspora_remplace && groupe === 'diaspora' && (e === 'glisse' || e === 'dormante' || e === 'disparue')) { raison = `vit à l’étranger (${raison})`; e = 'diaspora'; }
   const etapeAuto = e!;
   const toutes = [...ETAPES.map((x) => x.cle), ...categories.filter((x) => x.type === 'etape').map((x) => x.id)];
   const etape = c.etape && toutes.includes(c.etape) ? c.etape : etapeAuto;
@@ -431,97 +435,54 @@ export function critereDit(c: CritereDeLaMaison): string {
 
 const listeDite = (xs: string[]): string => (xs.length <= 1 ? (xs[0] ?? '') : `${xs.slice(0, -1).join(', ')} ou ${xs[xs.length - 1]}`);
 
-/** Qui entre dans la catégorie d'une vue de la colonne (`e:curieuse`,
-    `g:diaspora`, `r:annuelle`, `m:annule-souvent`, `l:calavi`…), en mots et
-    avec les chiffres en vigueur ; `null` pour une vue qui n'est pas une
-    catégorie (« Toutes les fiches », « Toutes les annulations »…). */
+/** Les mots de La Privilégiée (25 novembre 2026, Yéman) : elle ne se calcule
+    pas, la Maison la reconnaît. */
+export const LA_PRIVILEGIEE_DITE = 'Elle ne négocie pas les prix, elle a besoin d’une attention particulière, et elle dit oui à nos services sans difficulté.';
+
+/** Qui entre dans la catégorie d'une vue de la colonne (`e:reguliere`,
+    `e:<catégorie de la Maison>`, `m:<marque de la Maison>`), en mots et avec
+    les chiffres en vigueur ; `null` pour une vue qui n'est pas une catégorie
+    (« Toutes les fiches »). Cinq catégories depuis le 25 novembre 2026. */
 export function definitionDeLaVue(vue: string, p: CriteresDuClassement, categories: readonly CategorieDeLaMaison[]): string | null {
   const k = vue.slice(2);
   const cat = categories.find((x) => x.id === k);
   if ((vue.startsWith('e:') || vue.startsWith('m:')) && cat) {
     const regle = cat.regle.trim();
     const criteres = cat.criteres.map(critereDit).filter(Boolean);
-    const quoi = cat.type === 'marque' ? 'Une marque de la Maison' : 'Une étape de la Maison, lue juste après « Hors parcours »';
+    const quoi = cat.type === 'marque' ? 'Une marque de la Maison' : 'Une catégorie de la Maison, lue juste après « Sans catégorie »';
     const ou = criteres.length
       ? `${quoi}. Elle y entre si tous ses critères tiennent : ${criteres.join(' ; ')}.`
       : `${quoi}, sans critère : on y range une fiche à la main, depuis son dossier.`;
     return regle ? `${regle} ${ou}` : ou;
   }
-  if (vue.startsWith('e:')) {
-    switch (k) {
-      case 'hors': {
-        const quand = [
-          ...(p.hors_stop ? ['elle a dit STOP'] : []),
-          ...(p.hors_locks ? ['elle a défait ses locks'] : []),
-          ...(p.hors_passage_pose ? ['la Maison l’a marquée « de passage » à la main'] : []),
-          ...(p.de_passage === 'hors' ? [`elle est venue une seule fois, il y a plus de ${p.premiere_jours} jours, et le Trône l’a marquée « de passage »`] : []),
-          'c’est une fiche d’essai',
-        ];
-        return `Elle y entre si ${listeDite(quand)}. Seuls les rappels de rendez-vous lui partent.`;
-      }
-      case 'abonnee': return 'Une formule active (Carnet, Lune, Année…) dont l’échéance n’est pas passée. Ses relances suivent ses séances.';
-      case 'annulee': return `Une annulation${p.annulee_absences ? ' (ou un rendez-vous passé resté « confirmé »)' : ''} il y a ${p.annulee_jours} jours au plus, et ni visite ni rendez-vous depuis.`;
-      case 'reservee': return 'Aucune visite encore, et un rendez-vous à venir.';
-      case 'curieuse': return `Aucune visite, aucun rendez-vous, et sa fiche a été créée il y a ${p.curieuse_jours} jours au plus.`;
-      case 'ancien-contact': return `Aucune visite, aucun rendez-vous, et sa fiche a été créée il y a plus de ${p.curieuse_jours} jours : plus de relance, seulement les nouvelles si elle a dit oui.`;
-      case 'premiere': return `Une seule visite, il y a ${p.premiere_jours} jours au plus, et pas encore de rythme connu.`;
-      case 'disparue': return `Une seule visite, il y a plus de ${p.premiere_jours} jours, et pas de rythme connu. ${p.de_passage === 'disparue' ? 'Les fiches marquées « de passage » par le Trône y sont aussi, relancées de la même façon.' : 'Les fiches marquées « de passage » par le Trône n’y sont pas : elles restent hors parcours.'}`;
-      case 'couronne': return `Deux visites ou plus (ou un rythme connu), et la dernière il y a au plus son rythme plus ${p.marge} jours. Son rythme : celui choisi par la Maison, sinon celui déclaré sur sa fiche, sinon l’écart mesuré entre ses visites ; à défaut, ${p.rythme_maison} jours.`;
-      case 'annuelle': return `Son rythme est de ${p.annuelle_rythme} jours ou plus (ou la Maison a choisi « une » ou « deux fois par an »), et elle est dans ce rythme, avec ${p.annuelle_marge} jours de marge. Ce n’est pas une dormante.`;
-      case 'glisse': return `Elle a dépassé son rythme plus ${p.marge} jours de marge, mais elle est venue il y a ${p.dormante_jours} jours au plus.`;
-      case 'dormante': return `Plus de ${p.dormante_jours} jours sans venir, ou au-delà de son rythme annuel et de ${p.annuelle_marge} jours de marge.`;
-      case 'diaspora': return p.diaspora_remplace
-        ? 'Elle vit à l’étranger et, sans cela, elle glisserait, dormirait ou serait disparue : ses relances suivent ses séjours.'
-        : 'Désactivée : une cliente qui vit à l’étranger garde l’étape que disent les autres critères.';
-      default: return null;
+  if (!vue.startsWith('e:')) return null;
+  switch (k) {
+    case 'privilegiee': return `${LA_PRIVILEGIEE_DITE} Le Trône ne la devine pas : la Maison l’y range depuis son dossier, et ce choix passe avant tous les critères.`;
+    case 'reguliere': return `Elle est venue, et sa dernière visite date de ${p.dormante_jours} jours au plus. Celle qui vient une ou deux fois par an (un rythme de ${p.annuelle_rythme} jours ou plus) y reste tant qu’elle est dans son rythme, avec ${p.annuelle_marge} jours de marge.`;
+    case 'annulee': return `Une annulation${p.annulee_absences ? ' (ou un rendez-vous passé resté « confirmé »)' : ''} il y a ${p.annulee_jours} jours au plus, et ni visite ni rendez-vous depuis. Elle passe avant la Diaspora, la Dormante et la Régulière.`;
+    case 'dormante': return `Sa dernière visite date de plus de ${p.dormante_jours} jours. Celle qui vient une ou deux fois par an n’y entre qu’au-delà de son rythme et de ${p.annuelle_marge} jours de marge.`;
+    case 'diaspora': return p.diaspora_remplace
+      ? `Elle vit à l’étranger : le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora${p.numero_suffit ? ', ou un numéro étranger' : ' (un numéro étranger seul ne suffit pas)'}. Ses relances suivent ses séjours ; seule une annulation récente passe avant.`
+      : 'Désactivée : une cliente qui vit à l’étranger se range comme les autres, Régulière ou Dormante.';
+    case 'hors': {
+      const quand = [
+        'elle n’est encore jamais venue (même avec un rendez-vous à venir)',
+        ...(p.hors_stop ? ['elle a dit STOP'] : []),
+        ...(p.hors_locks ? ['elle a défait ses locks'] : []),
+        ...(p.hors_passage_pose ? ['la Maison l’a marquée « de passage » à la main'] : []),
+        'c’est une fiche d’essai',
+      ];
+      return `Ce n’est pas une catégorie : la fiche y reste si ${listeDite(quand)}.`;
     }
+    default: return null;
   }
-  if (vue.startsWith('g:') || vue.startsWith('l:')) {
-    const groupe = vue.startsWith('g:') ? k : LIEUX.find((l) => l.cle === k)?.groupe;
-    const sous = vue.startsWith('l:') ? `${LIEUX.find((l) => l.cle === k)?.nom ?? k}, dans « ${GROUPES_DE_LIEU.find((g) => g.cle === groupe)?.nom ?? ''} ». ` : '';
-    switch (groupe) {
-      case 'diaspora': return `${sous}Elle vit à l’étranger : le lieu choisi dans son dossier, une ville de l’étranger sur sa fiche, la marque diaspora${p.numero_suffit ? ', ou un numéro étranger' : ' (un numéro étranger seul ne suffit pas)'}.`;
-      case 'hors': return `${sous}Calavi, Porto-Novo, Bohicon ou une autre ville du Bénin, lue dans la ville de la fiche ou choisie par la Maison.`;
-      case 'benin': return p.ville_inconnue === 'a-preciser'
-        ? `${sous}Un numéro du Bénin, sans ville reconnue sur la fiche : la ville se choisit dans la liste de son profil.`
-        : `${sous}Vide : un numéro du Bénin sans ville est compté à Cotonou (réglage « Ville à préciser »).`;
-      case 'cotonou': return `${sous}La ville de la fiche (un quartier de Cotonou compte) ou le choix de la Maison${p.ville_inconnue === 'cotonou' ? ', et les numéros du Bénin sans ville' : ''}.`;
-      case 'inconnu': return `${sous}Ni ville sur la fiche, ni numéro.`;
-      default: return null;
-    }
-  }
-  if (vue.startsWith('r:')) {
-    switch (k) {
-      case 'reguliere': return `Une visite tous les ${p.reguliere_max} jours ou moins.`;
-      case 'espacee': return `Plus de ${p.reguliere_max} jours et moins de ${p.annuelle_rythme} jours entre deux visites.`;
-      case 'annuelle': return `Un rythme de ${p.annuelle_rythme} jours ou plus, ou « une » ou « deux fois par an » choisi par la Maison.`;
-      case 'inconnu': return 'Moins de deux visites, et aucun rythme choisi par la Maison ni déclaré sur la fiche.';
-      default: return null;
-    }
-  }
-  if (vue.startsWith('m:')) {
-    switch (k) {
-      case 'annule-souvent': return `Au moins ${p.annule_nb} annulations sur ${p.annule_mois} mois${p.annule_absences ? ', les rendez-vous restés « confirmés » compris' : ''}.`;
-      case 'abonnee-sans-rdv': return 'Une formule active et aucun rendez-vous à venir : elle a oublié de réserver.';
-      case 'absences': return 'Un rendez-vous passé jamais marqué « honoré » : une venue à marquer, ou une absence.';
-      case 'ancienne-abonnee': return 'Une formule terminée ou épuisée, et aucune autre active.';
-      case 'diaspora-a-confirmer': return 'Un numéro étranger, sans marque diaspora ni lieu choisi : à confirmer dans son dossier.';
-      case 'sans-numero': return 'Aucun numéro utilisable : aucune relance possible, à compléter dans son profil.';
-      case 'de-passage': return 'La marque du Trône pour une venue sans relation engagée ; elle se lève seule à la deuxième visite.';
-      default: return null;
-    }
-  }
-  return null;
 }
 
-/** La carte de « Les critères » où se règle la catégorie d'une vue ; une
-    ville mène à la carte de son groupe. `null` : rien à y régler. */
+/** La carte de « Les critères » où se règle la catégorie d'une vue ;
+    `null` : rien à y régler. */
 export function carteDeLaVue(vue: string, categories: readonly CategorieDeLaMaison[]): string | null {
   const k = vue.slice(2);
   if ((vue.startsWith('e:') || vue.startsWith('m:')) && categories.some((x) => x.id === k)) return `def-cat:${k}`;
   if (vue.startsWith('e:')) return ETAPES.some((x) => x.cle === k) ? `def-e:${k}` : null;
-  if (vue.startsWith('m:')) return MARQUES.some((x) => x.cle === k) ? `def-m:${k}` : null;
-  if (vue.startsWith('r:')) return RYTHMES.some((x) => x.cle === k) ? `def-r:${k}` : null;
-  const groupe = vue.startsWith('g:') ? k : vue.startsWith('l:') ? LIEUX.find((l) => l.cle === k)?.groupe : undefined;
-  return groupe && groupe !== 'inconnu' ? `def-g:${groupe}` : null;
+  return null;
 }
