@@ -36,6 +36,37 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+/* ⟨en-clair⟩ */
+/* LA PRESTATION EN CLAIR (25 novembre 2026, shared/en-clair-pur) : quelques
+   mots simples à côté du nom, « Rituel Sówà™ (traitement anti-poux) ». */
+const sansAccentsEnClair = (t: string): string =>
+  String(t ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Les mots en clair d'une prestation, propres : un espace entre chaque mot,
+    rien autour. Vide quand la prestation n'en porte pas. */
+const enClairDe = (s: { enClair?: unknown } | null | undefined): string =>
+  typeof s?.enClair === 'string' ? s.enClair.replace(/\s+/g, ' ').trim() : '';
+
+/** Le nom, puis ses mots en clair entre parenthèses. Le nom seul quand il n'y
+    en a pas, ou quand le nom les dit déjà (« … · lavage et retouche »). */
+const nomEtEnClair = (nom: string, enClair?: string | null): string => {
+  const n = String(nom ?? '').replace(/\s+/g, ' ').trim();
+  const e = String(enClair ?? '').replace(/\s+/g, ' ').trim();
+  if (!e || !n) return n;
+  return sansAccentsEnClair(n).includes(sansAccentsEnClair(e)) ? n : `${n} (${e})`;
+};
+
+/** Les mots en clair de la prestation qui porte CE nom au catalogue : une
+    ligne de facture ne garde que le nom écrit le jour de la pièce. Vide quand
+    aucune prestation de ce nom n'en porte. */
+const enClairDuLibelle = (libelle: string, services: readonly { name?: unknown; enClair?: unknown }[]): string => {
+  const l = String(libelle ?? '').replace(/\s+/g, ' ').trim();
+  if (!l) return '';
+  const s = services.find((x) => typeof x?.name === 'string' && x.name.replace(/\s+/g, ' ').trim() === l && enClairDe(x) !== '');
+  return s ? enClairDe(s) : '';
+};
+/* ⟨/en-clair⟩ */
+
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
 
 /** La fenêtre de rattrapage : on regarde les rendez-vous touchés dans les
@@ -536,7 +567,7 @@ const confirmationEstNeuve = (
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-18-b · la règle de l’attente recopiée du dépôt (une place dont l’heure est venue, ou dont le comptoir a noté le oui, ne se libère pas ; « Je confirme » écrit pour toutes ses places) ; le balayage ne change pas · 2026-11-18-a · le rendez-vous en attente : une place tenue depuis le site, tant qu’elle attend son oui ou son acompte, ne reçoit ni proposition ni confirmation ; elle les reçoit ferme · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
+const VERSION = '2026-11-25-a · les prestations en clair dans proposition_rituel ; 2026-11-18-b · la règle de l’attente recopiée du dépôt (une place dont l’heure est venue, ou dont le comptoir a noté le oui, ne se libère pas ; « Je confirme » écrit pour toutes ses places) ; le balayage ne change pas · 2026-11-18-a · le rendez-vous en attente : une place tenue depuis le site, tant qu’elle attend son oui ou son acompte, ne reçoit ni proposition ni confirmation ; elle les reçoit ferme · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : un rendez-vous posé « Suggéré par la Maison » reçoit la proposition (modèle proposition_rituel, WA_TEMPLATE_PROPOSITION, « Je confirme » et « Un autre moment ») à la place de la confirmation, une seule fois ; sans le modèle, rien ne part sur WhatsApp · 2026-11-11-a · ce qui va partir : une confirmation arrêtée d’avance, ou d’un modèle en pause, ne part pas ; le modèle à liens en pause, l’ancien part à sa place ; un message par foyer, qui nomme chaque tête ; un périmé retenu par Opale ne se redépose pas';
 
 /* LE LIEN DU RENDEZ-VOUS — 3 novembre 2026. Bloc RECOPIÉ tel quel de
    `src/shared/lien-du-rdv-pur.ts` (ses choix y sont écrits) ;
@@ -1726,7 +1757,10 @@ Deno.serve(async (req) => {
     const ids = [...new Set(aProposer.flatMap((a) => a.serviceIds ?? []))];
     if (ids.length > 0) {
       const { data: svc } = await sb.from('catalog_services').select('id, data').in('id', ids);
-      nomsDesGestes = new Map(((svc ?? []) as { id: string; data: { name?: string } }[]).map((r) => [r.id, String(r.data?.name ?? '').split(' · ')[0]]));
+      /* Le nom court, puis ses mots en clair (25 novembre 2026) : « KLƆKLƆ™
+         Essentiel (lavage doux) ». Le même que l'aperçu du Trône (SonProchainRituel). */
+      nomsDesGestes = new Map(((svc ?? []) as { id: string; data: { name?: string; enClair?: string } }[])
+        .map((r) => [r.id, nomEtEnClair(String(r.data?.name ?? '').split(' · ')[0], r.data?.enClair)]));
     }
   }
   for (const a of aProposer) {

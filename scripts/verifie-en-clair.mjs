@@ -54,7 +54,18 @@ const BRANCHEMENTS = [
   ['le point, en fenêtre', 'src/apps/trone/routes/vente/FenetreDuPoint.tsx', /enClairDe: enClairDeLaLigne/],
   ['le rappel de la cloche', 'src/apps/trone/routes/clients/_shared.tsx', /rituels: apptServices\(a, byId\)\.map\(\(x\) => nomEtEnClair\(x\.name, x\.enClair\)\)/],
   ['le Catalogue : le champ', 'src/apps/trone/routes/vente/Catalogue.tsx', /enClair: svcForm\.enClair\.replace\(\/\\s\+\/g, ' '\)\.trim\(\) \|\| undefined/],
+  /* Le second lot, le même jour : les messages et la page de règlement. */
+  ['Ma Couronne : son reçu', 'src/apps/couronne/RituelEnCours.tsx', /nomEtEnClair\(l\.label, enClairDuLibelle\(l\.label, services\)\)/],
+  ['rdv_a_confirmer (une demande du site)', 'supabase/functions/demande-submit/index.ts', /return s\?\.name \? nomEtEnClair\(s\.name, s\.enClair\) : sid;/],
+  ['proposition_rituel', 'supabase/functions/confirmation-rdv/index.ts', /nomEtEnClair\(String\(r\.data\?\.name \?\? ''\)\.split\(' · '\)\[0\], r\.data\?\.enClair\)/],
+  ['reprise_proposee (la relance à trois jours)', 'supabase/functions/rappels-j1/index.ts', /nomEtEnClair\(String\(r\.data\?\.name \?\? ''\)\.split\(' · '\)\[0\], r\.data\?\.enClair\)/],
+  ['l’aperçu du Trône dit comme proposition_rituel', 'src/apps/trone/routes/vente/SonProchainRituel.tsx', /\.map\(\(s\) => nomEtEnClair\(s\.name\.split\(' · '\)\[0\], s\.enClair\)\)/],
+  ['« C’est réservé » de Perle', 'supabase/functions/whatsapp-automate/index.ts', /return nom \? nomEtEnClair\(nom, enClairDuGeste\.get\(id\)\) : '';/],
+  ['la page de règlement, une tête', 'supabase/functions/regler-la-seance/index.ts', /page: await avecLesMotsEnClair\(pageDuLien\(/],
+  ['la page de règlement, le foyer', 'supabase/functions/regler-la-seance/index.ts', /page: await avecLesMotsEnClair\(pageDuFoyer\(/],
 ];
+/* Les fonctions qui portent la copie du juge. */
+const FONCTIONS_AVEC_COPIE = ['demande-submit', 'confirmation-rdv', 'rappels-j1', 'whatsapp-automate', 'regler-la-seance'];
 
 async function charge(sources, nom) {
   const dossier = path.join(d, nom);
@@ -163,6 +174,7 @@ function epreuves(m, textes) {
   /* ── Les copies dans les fonctions Edge ── */
   const juge = entre(textes[SOURCE], 'en-clair');
   vrai('le juge est entre ses repères', !!juge);
+  for (const f of FONCTIONS_AVEC_COPIE) vrai(`${f} porte la copie du juge`, entre(textes[`supabase/functions/${f}/index.ts`] ?? '', 'en-clair') !== null);
   for (const [rel, texte] of Object.entries(textes)) {
     if (!rel.startsWith('supabase/functions/')) continue;
     const copie = entre(texte, 'en-clair');
@@ -197,6 +209,9 @@ const PANNES = [
   ['le Trône ne tend pas le crochet', 'src/apps/trone/routes/vente/pdf-de-la-piece.ts', '    contenuDeLaLigne,\n    enClairDeLaLigne,\n  });', '    contenuDeLaLigne,\n  });'],
   ['la cloche oublie les mots', 'src/apps/trone/routes/clients/_shared.tsx', 'map((x) => nomEtEnClair(x.name, x.enClair))', 'map((x) => x.name)'],
   ['Ma Couronne oublie les mots', 'src/apps/couronne/Tabs.tsx', '.map((s) => nomEtEnClair(s.name, s.enClair))', '.map((s) => s.name)'],
+  ['une copie du juge s’écarte', 'supabase/functions/regler-la-seance/index.ts', "`${n} (${e})`", "`${n} — ${e}`"],
+  ['Perle oublie les mots', 'supabase/functions/whatsapp-automate/index.ts', 'return nom ? nomEtEnClair(nom, enClairDuGeste.get(id)) : \'\';', 'return nom ?? \'\';'],
+  ['la page de règlement oublie les mots', 'supabase/functions/regler-la-seance/index.ts', 'page: await avecLesMotsEnClair(pageDuLien(', 'page: await (pageDuLien('],
   ['la garde du réglage tombe', SQL, "   and coalesce(c.data->>'enClair', '') = '';", ';'],
   ['un mot avec sa marque', SQL, '$t$lavage doux$t$', '$t$KLƆKLƆ™ lavage doux$t$'],
 ];

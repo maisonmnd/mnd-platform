@@ -217,6 +217,37 @@
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+/* ⟨en-clair⟩ */
+/* LA PRESTATION EN CLAIR (25 novembre 2026, shared/en-clair-pur) : quelques
+   mots simples à côté du nom, « Rituel Sówà™ (traitement anti-poux) ». */
+const sansAccentsEnClair = (t: string): string =>
+  String(t ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Les mots en clair d'une prestation, propres : un espace entre chaque mot,
+    rien autour. Vide quand la prestation n'en porte pas. */
+const enClairDe = (s: { enClair?: unknown } | null | undefined): string =>
+  typeof s?.enClair === 'string' ? s.enClair.replace(/\s+/g, ' ').trim() : '';
+
+/** Le nom, puis ses mots en clair entre parenthèses. Le nom seul quand il n'y
+    en a pas, ou quand le nom les dit déjà (« … · lavage et retouche »). */
+const nomEtEnClair = (nom: string, enClair?: string | null): string => {
+  const n = String(nom ?? '').replace(/\s+/g, ' ').trim();
+  const e = String(enClair ?? '').replace(/\s+/g, ' ').trim();
+  if (!e || !n) return n;
+  return sansAccentsEnClair(n).includes(sansAccentsEnClair(e)) ? n : `${n} (${e})`;
+};
+
+/** Les mots en clair de la prestation qui porte CE nom au catalogue : une
+    ligne de facture ne garde que le nom écrit le jour de la pièce. Vide quand
+    aucune prestation de ce nom n'en porte. */
+const enClairDuLibelle = (libelle: string, services: readonly { name?: unknown; enClair?: unknown }[]): string => {
+  const l = String(libelle ?? '').replace(/\s+/g, ' ').trim();
+  if (!l) return '';
+  const s = services.find((x) => typeof x?.name === 'string' && x.name.replace(/\s+/g, ' ').trim() === l && enClairDe(x) !== '');
+  return s ? enClairDe(s) : '';
+};
+/* ⟨/en-clair⟩ */
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 /* La clé service : CLE_SERVICE (la famille sb_secret, depuis la rotation du
    7 septembre), sinon SERVICE_KEY comme push-notify, sinon celle de la plateforme. */
@@ -230,7 +261,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-20-b · un petit service partage UNE place avec un seul voisin (placesPrises, places_prises 0242) : plus jamais trois clientes dans deux fauteuils ; 2026-11-20-a · le petit service partage l heure : un rendez-vous d une heure ou moins se pose chez Team a cote de n importe quelle tete, et un petit service et son voisin ne prennent qu une place en ligne (petitService, partagentLaPlace, 0240) ; 2026-11-18-d · deux têtes chez Team : le juge du site, de Ma Couronne et du déplacement lit la tête (le calibre annoncé, la fiche) ; Team reçoit une seconde cliente à la même heure quand l’une des deux a moins de 150 locks, jamais deux lourdes ; le compte annoncé s’écrit sur le rendez-vous (locksAnnonces) ; 2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-25-a · les prestations en clair dans rdv_a_confirmer (« Rituel Sówà™ (traitement anti-poux) ») ; 2026-11-20-b · un petit service partage UNE place avec un seul voisin (placesPrises, places_prises 0242) : plus jamais trois clientes dans deux fauteuils ; 2026-11-20-a · le petit service partage l heure : un rendez-vous d une heure ou moins se pose chez Team a cote de n importe quelle tete, et un petit service et son voisin ne prennent qu une place en ligne (petitService, partagentLaPlace, 0240) ; 2026-11-18-d · deux têtes chez Team : le juge du site, de Ma Couronne et du déplacement lit la tête (le calibre annoncé, la fiche) ; Team reçoit une seconde cliente à la même heure quand l’une des deux a moins de 150 locks, jamais deux lourdes ; le compte annoncé s’écrit sur le rendez-vous (locksAnnonces) ; 2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -2265,7 +2296,7 @@ const jourDeLaMaison = (): string =>
 /** LE PRIX FERME D'UNE PRESTATION, ou zéro : même règle que la réservation
     du site (`prixFerme`, Reserver.tsx). Un devis, un prix caché ou absent
     valent zéro ; « variable » compte comme ferme et dit « à partir de ». */
-type ServiceEnBase = { id: string; data?: { name?: string; priceXof?: number; priceMode?: string; hidePrice?: boolean; categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean; sansRemise?: boolean } };
+type ServiceEnBase = { id: string; data?: { name?: string; enClair?: string; priceXof?: number; priceMode?: string; hidePrice?: boolean; categoryId?: string; durationMin?: number; enabled?: boolean; archived?: boolean; sansRemise?: boolean } };
 /* UN GESTE SANS REMISE N'EN PREND AUCUNE — 4 novembre 2026 (le Rituel Sówà™,
    `sansRemise` au catalogue, Yéman) : son prix ne s'engage pour aucun code,
    aucune place, aucun parrainage. Il garde son prix ; la ligne ne mord pas. */
@@ -4993,7 +5024,12 @@ Deno.serve(async (req) => {
     maitresLibres = verdict.maitres;
     dureeMin = verdict.dureeMin;
     master = verdict.maitres[0] ?? '';
-    nomsDesGestes = serviceIds.map((sid: string) => verdict.catalogue.find((x) => x.id === sid)?.data?.name ?? sid);
+    /* LA PRESTATION EN CLAIR (25 novembre 2026) : le modèle rdv_a_confirmer
+       dit « Rituel Sówà™ (traitement anti-poux) », elle sait ce qu'elle a demandé. */
+    nomsDesGestes = serviceIds.map((sid: string) => {
+      const s = verdict.catalogue.find((x) => x.id === sid)?.data;
+      return s?.name ? nomEtEnClair(s.name, s.enClair) : sid;
+    });
     duCode = remiseDuCode({ code: codeEcrit, serviceIds, branchId, catalogue: verdict.catalogue, offres: verdict.offres, date });
     /* LA PLACE LIMITÉE NE SE TAPE PAS — 4 novembre 2026. Le code d'une offre à
        places arrive quand la page a MONTRÉ la remise de ce jour ; il ne vaut

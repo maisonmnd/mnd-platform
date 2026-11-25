@@ -1,6 +1,37 @@
 ﻿// deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+/* ⟨en-clair⟩ */
+/* LA PRESTATION EN CLAIR (25 novembre 2026, shared/en-clair-pur) : quelques
+   mots simples à côté du nom, « Rituel Sówà™ (traitement anti-poux) ». */
+const sansAccentsEnClair = (t: string): string =>
+  String(t ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Les mots en clair d'une prestation, propres : un espace entre chaque mot,
+    rien autour. Vide quand la prestation n'en porte pas. */
+const enClairDe = (s: { enClair?: unknown } | null | undefined): string =>
+  typeof s?.enClair === 'string' ? s.enClair.replace(/\s+/g, ' ').trim() : '';
+
+/** Le nom, puis ses mots en clair entre parenthèses. Le nom seul quand il n'y
+    en a pas, ou quand le nom les dit déjà (« … · lavage et retouche »). */
+const nomEtEnClair = (nom: string, enClair?: string | null): string => {
+  const n = String(nom ?? '').replace(/\s+/g, ' ').trim();
+  const e = String(enClair ?? '').replace(/\s+/g, ' ').trim();
+  if (!e || !n) return n;
+  return sansAccentsEnClair(n).includes(sansAccentsEnClair(e)) ? n : `${n} (${e})`;
+};
+
+/** Les mots en clair de la prestation qui porte CE nom au catalogue : une
+    ligne de facture ne garde que le nom écrit le jour de la pièce. Vide quand
+    aucune prestation de ce nom n'en porte. */
+const enClairDuLibelle = (libelle: string, services: readonly { name?: unknown; enClair?: unknown }[]): string => {
+  const l = String(libelle ?? '').replace(/\s+/g, ' ').trim();
+  if (!l) return '';
+  const s = services.find((x) => typeof x?.name === 'string' && x.name.replace(/\s+/g, ' ').trim() === l && enClairDe(x) !== '');
+  return s ? enClairDe(s) : '';
+};
+/* ⟨/en-clair⟩ */
+
 /* regler-la-seance — la cliente règle sa séance depuis son téléphone
  * (25 octobre 2026).
  *
@@ -51,7 +82,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
    pouvait donc pas prouver quel code répondait, et une mise en ligne qui
    n'avait pas pris se lisait comme une mise en ligne réussie. Elle suit
    désormais chaque changement de comportement. */
-const VERSION = '2026-11-23-a';
+/* 2026-11-25-a : les mots en clair à côté des lignes de la page (avecLesMotsEnClair). */
+const VERSION = '2026-11-25-a';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -410,6 +442,34 @@ export function pageDuFoyer(o: {
   };
 }
 // ── FIN copie de shared/regler-la-seance-pur.ts
+
+/** LA PRESTATION EN CLAIR SUR LA PAGE — 25 novembre 2026. Une ligne de la
+    pièce ne garde que le nom écrit ce jour-là ; ses mots simples se
+    retrouvent par la prestation de ce nom au catalogue d'aujourd'hui, et se
+    posent à côté (« Rituel Sówà™ (traitement anti-poux) »). La ligne d'un
+    foyer porte le prénom devant (« Keli · Rituel Sówà™ ») : elle se reconnaît
+    par sa fin. Un produit de la Gamme, ou une lecture du catalogue en échec,
+    laisse la page telle qu'elle était. */
+type LigneDeLaPage = { label: string; montantXof: number; produitId?: string };
+async function avecLesMotsEnClair<P extends { lignes?: LigneDeLaPage[]; tetes?: { lignes: LigneDeLaPage[] }[] }>(page: P): Promise<P> {
+  const { data, error } = await admin.from('catalog_services').select('id, data');
+  if (error || !data) return page;
+  const catalogue = (data as { data?: { name?: unknown; enClair?: unknown } }[])
+    .map((r) => ({ name: typeof r.data?.name === 'string' ? r.data.name.replace(/\s+/g, ' ').trim() : '', enClair: enClairDe(r.data) }))
+    .filter((s) => s.name !== '' && s.enClair !== '')
+    .sort((a, b) => b.name.length - a.name.length);
+  const dit = (l: LigneDeLaPage): LigneDeLaPage => {
+    if (l.produitId) return l;
+    const label = String(l.label ?? '').replace(/\s+/g, ' ').trim();
+    const s = catalogue.find((x) => label === x.name || label.endsWith(` · ${x.name}`));
+    return s ? { ...l, label: nomEtEnClair(label, s.enClair) } : l;
+  };
+  return {
+    ...page,
+    ...(page.lignes ? { lignes: page.lignes.map(dit) } : {}),
+    ...(page.tetes ? { tetes: page.tetes.map((t) => ({ ...t, lignes: t.lignes.map(dit) })) } : {}),
+  };
+}
 
 /** LE JETON DE SES ÉTOILES, quand la demande existe déjà — 23 novembre 2026.
     `avis-google` dépose LA SIENNE, pour la pièce du jour, avec le jeton que
@@ -1158,7 +1218,7 @@ async function lireLeFoyer(jeton: string, rdvsLus: Ligne[], noteLOuverture: bool
     const pl = await laPiece(rdv.id);
     tetes.push({ rdv: r, piece: pl ? { ...(pl.data ?? {}), id: pl.id } : null, prenom: await prenomDUsageDe(r.clientId, r.clientName) });
   }
-  return json({ ok: true, rattrapes, page: pageDuFoyer({ tetes, jeton, branchId: rdvs[0]?.branch_id, maintenant: new Date() }) });
+  return json({ ok: true, rattrapes, page: await avecLesMotsEnClair(pageDuFoyer({ tetes, jeton, branchId: rdvs[0]?.branch_id, maintenant: new Date() })) });
 }
 
 async function lire(req: Request, b: any, noteLOuverture: boolean) {
@@ -1197,7 +1257,7 @@ async function lire(req: Request, b: any, noteLOuverture: boolean) {
       return json({ ok: true, rattrapes, page: pageSansPiece({ rdv: r as any, porte: sp.porte, quand: sp.moment, prenom, reference: referenceDuRdv(rdv.id), branchId: rdv.branch_id }) });
     }
   }
-  return json({ ok: true, rattrapes, page: pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date(), parInvitee, ...(etoilesJeton ? { etoilesJeton } : {}) }) });
+  return json({ ok: true, rattrapes, page: await avecLesMotsEnClair(pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date(), parInvitee, ...(etoilesJeton ? { etoilesJeton } : {}) })) });
 }
 
 async function regler(req: Request, b: any) {

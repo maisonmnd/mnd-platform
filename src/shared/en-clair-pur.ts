@@ -19,7 +19,7 @@
 /* LA PRESTATION EN CLAIR (25 novembre 2026, shared/en-clair-pur) : quelques
    mots simples à côté du nom, « Rituel Sówà™ (traitement anti-poux) ». */
 const sansAccentsEnClair = (t: string): string =>
-  String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  String(t ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 /** Les mots en clair d'une prestation, propres : un espace entre chaque mot,
     rien autour. Vide quand la prestation n'en porte pas. */

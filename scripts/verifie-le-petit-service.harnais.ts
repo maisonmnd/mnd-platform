@@ -139,7 +139,8 @@ dit('la place de SA personne (deplacement, retard) : le petit service partage la
 dit('le retard se juge AVANT de liberer sa place, chez sa personne, le jour meme', true,
   /const tient = laPlaceTientPourLeMaitreWa\(agenda\.agenda, maitre, \{ date, time: heure, dureeMin \}, \{ date, time: avant \}, ms, true\);[\s\S]{0,900}if \(!tient\.ok && auDela === null\) \{[\s\S]{0,400}const fait = await metsAReprogrammerWa\(sb, r, 'opale', aujourdhui\);/.test(WA));
 dit('les versions disent le petit service', [true, true],
-  [/^const VERSION = '2026-11-20-c · un petit service partage UNE place/m.test(WA), /^const VERSION = '2026-11-20-b · un petit service partage UNE place/m.test(DS)]);
+  /* Une version plus récente se pose devant (25 novembre 2026, les prestations en clair) : ce lot y reste dit. */
+  [/^const VERSION = '[^'\n]*2026-11-20-c · un petit service partage UNE place/m.test(WA), /^const VERSION = '[^'\n]*2026-11-20-b · un petit service partage UNE place/m.test(DS)]);
 
 const SQL = lis('supabase/migrations/0240_le_petit_service_partage_l_heure.sql');
 const corps = (debut: string): string => {

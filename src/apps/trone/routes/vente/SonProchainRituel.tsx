@@ -94,6 +94,7 @@ import {
 import { estEnAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-attente-pur';
 import { laPlaceDuSouhait, leRituelVoulu, phraseDuSouhait, type Souhait } from '../../../../shared/agent-des-rendez-vous-pur';
 import { supabase } from '../../../../shared/supabase';
+import { nomEtEnClair } from '../../../../shared/en-clair-pur';
 import './son-prochain-rituel.css';
 
 const NOMS_DES_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -890,7 +891,10 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   ) : null;
 
   const gestesDits = (() => {
-    const noms = gestesMontres.map((id) => byId.get(id)?.name.split(' · ')[0]).filter(Boolean) as string[];
+    /* Le nom court et ses mots en clair (25 novembre 2026), comme le WhatsApp
+       que confirmation-rdv envoie : « KLƆKLƆ™ Essentiel (lavage doux) ». */
+    const noms = gestesMontres.map((id) => byId.get(id)).filter((s): s is NonNullable<typeof s> => !!s)
+      .map((s) => nomEtEnClair(s.name.split(' · ')[0], s.enClair)).filter(Boolean);
     return noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0] ?? 'votre rituel';
   })();
 

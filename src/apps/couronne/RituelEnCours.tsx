@@ -7,6 +7,8 @@ import { laPieceDuRdv, lignesDites, resteDeLaPiece, type PieceLue } from '../../
 import { carteDuRituelEnCours, resteConnuDeLaFin } from '../../shared/terminer-et-regler-pur';
 import { pageDuReglement, refusDeLaFin, termineMonRituel } from '../../shared/terminer-et-regler-serveur';
 import { prenomDUsage } from '../../shared/civilite';
+import { useServices } from '../../shared/catalog';
+import { enClairDuLibelle, nomEtEnClair } from '../../shared/en-clair-pur';
 import { useClient, useClientId } from './lib';
 import { prix, t } from './i18n';
 
@@ -34,6 +36,8 @@ export default function RituelEnCours({ nomDuRituel }: { nomDuRituel: (a: Appoin
   const monId = useClientId();
   const [appts] = useAppointments();
   const [invoices] = useInvoices();
+  /* Pour les mots en clair de son reçu (25 novembre 2026). */
+  const [services] = useServices();
   const [maintenant, setMaintenant] = useState(() => Date.now());
   const [enCours, setEnCours] = useState(false);
   const [souci, setSouci] = useState('');
@@ -85,7 +89,7 @@ export default function RituelEnCours({ nomDuRituel }: { nomDuRituel: (a: Appoin
           <details className="mc-rituel__recu">
             <summary className="mc-nextrdv__when">{t('Votre reçu')}</summary>
             {lignesDites(piece).map((l, i) => (
-              <div className="mc-rituel__ligne mc-nextrdv__when" key={i}><span>{l.label}</span><span>{prix(l.montantXof, currency)}</span></div>
+              <div className="mc-rituel__ligne mc-nextrdv__when" key={i}><span>{nomEtEnClair(l.label, enClairDuLibelle(l.label, services))}</span><span>{prix(l.montantXof, currency)}</span></div>
             ))}
             {dernier && (
               <div className="mc-rituel__ligne mc-nextrdv__when">

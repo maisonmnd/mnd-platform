@@ -28,13 +28,44 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
+/* ⟨en-clair⟩ */
+/* LA PRESTATION EN CLAIR (25 novembre 2026, shared/en-clair-pur) : quelques
+   mots simples à côté du nom, « Rituel Sówà™ (traitement anti-poux) ». */
+const sansAccentsEnClair = (t: string): string =>
+  String(t ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+/** Les mots en clair d'une prestation, propres : un espace entre chaque mot,
+    rien autour. Vide quand la prestation n'en porte pas. */
+const enClairDe = (s: { enClair?: unknown } | null | undefined): string =>
+  typeof s?.enClair === 'string' ? s.enClair.replace(/\s+/g, ' ').trim() : '';
+
+/** Le nom, puis ses mots en clair entre parenthèses. Le nom seul quand il n'y
+    en a pas, ou quand le nom les dit déjà (« … · lavage et retouche »). */
+const nomEtEnClair = (nom: string, enClair?: string | null): string => {
+  const n = String(nom ?? '').replace(/\s+/g, ' ').trim();
+  const e = String(enClair ?? '').replace(/\s+/g, ' ').trim();
+  if (!e || !n) return n;
+  return sansAccentsEnClair(n).includes(sansAccentsEnClair(e)) ? n : `${n} (${e})`;
+};
+
+/** Les mots en clair de la prestation qui porte CE nom au catalogue : une
+    ligne de facture ne garde que le nom écrit le jour de la pièce. Vide quand
+    aucune prestation de ce nom n'en porte. */
+const enClairDuLibelle = (libelle: string, services: readonly { name?: unknown; enClair?: unknown }[]): string => {
+  const l = String(libelle ?? '').replace(/\s+/g, ' ').trim();
+  if (!l) return '';
+  const s = services.find((x) => typeof x?.name === 'string' && x.name.replace(/\s+/g, ' ').trim() === l && enClairDe(x) !== '');
+  return s ? enClairDe(s) : '';
+};
+/* ⟨/en-clair⟩ */
+
 const TZ = 'Africa/Porto-Novo'; // le fuseau du salon — pas celui du serveur
 
 /** La version de ce fichier, rendue dans chaque réponse : dire ce qui tourne
     vraiment évite de chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. 10 octobre 2026 : le passage du soir ne dépose plus
     un rappel que les heures calmes retiendraient jusqu'au jour même. */
-const VERSION = '2026-11-18-a · une place prise en ligne qui attend son « Je confirme » n’est pas une suggestion : ni la relance trois jours avant, ni le comptoir prévenu la veille · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : la relance trois jours avant ne vise que les suggestions sans réponse (posées à partir du 15 novembre 2026), sur le modèle reprise_proposee (« Notre proposition du … vous convient-elle ? ») ; une suggestion sans oui n’a pas de rappel de la veille ; la veille à 10 h, le comptoir est prévenu des suggestions de demain sans réponse · 2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
+const VERSION = '2026-11-25-a · les prestations en clair dans reprise_proposee ; 2026-11-18-a · une place prise en ligne qui attend son « Je confirme » n’est pas une suggestion : ni la relance trois jours avant, ni le comptoir prévenu la veille · 2026-11-15-b · la proposition finit par « Cette date vous convient-elle ? », comme le modèle approuvé chez Meta · 2026-11-15-a · le rendez-vous suggéré : la relance trois jours avant ne vise que les suggestions sans réponse (posées à partir du 15 novembre 2026), sur le modèle reprise_proposee (« Notre proposition du … vous convient-elle ? ») ; une suggestion sans oui n’a pas de rappel de la veille ; la veille à 10 h, le comptoir est prévenu des suggestions de demain sans réponse · 2026-11-11-b · la veille d’une séance de formule dit « Une attention vous y attend » quand son panier est validé et que le modèle rappel_rdv_attention est posé (WA_TEMPLATE_RAPPEL_ATTENTION), sinon le rappel d’hier mot pour mot ; ce qui va partir : un rappel, une reprise ou un point arrêtés d’avance, ou d’un modèle en pause, ne se déposent pas ; un rappel par foyer, qui nomme chaque tête ; la porte d’Opale : un rappel retenu par Opale ne se redépose pas ; même modèle au fil de ce numéro depuis 20 h, il ne repart pas';
 
 type Rdv = {
   id: string;
@@ -829,8 +860,11 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
   const { data: svcRows } = gestesIds.length
     ? await sb.from('catalog_services').select('id, data').in('id', gestesIds)
     : { data: [] as { id: string; data: { name?: string } }[] };
+  /* Le nom court et ses mots en clair (25 novembre 2026), comme la
+     proposition de confirmation-rdv : « KLƆKLƆ™ Essentiel (lavage doux) ». */
   const nomDe = new Map<string, string>(
-    ((svcRows ?? []) as { id: string; data: { name?: string } }[]).map((r) => [r.id, r.data?.name ?? '']),
+    ((svcRows ?? []) as { id: string; data: { name?: string; enClair?: string } }[])
+      .map((r) => [r.id, nomEtEnClair(String(r.data?.name ?? '').split(' · ')[0], r.data?.enClair)]),
   );
 
   let parties = 0;
@@ -841,7 +875,7 @@ async function proposeLesReprises(sb: ReturnType<typeof createClient>, salleOuve
     const tel = numeroIntl(telDuRdv(a, fiche));
     const prenom = appelDe(fiche, a.clientName);
     const quand = `${jourEnClair(a.date)} à ${heureLisible(a.time)}`;
-    const gestes = (a.serviceIds ?? []).map((id) => String(nomDe.get(id) ?? '').split(' · ')[0]).filter(Boolean).join(', ') || 'votre rituel';
+    const gestes = (a.serviceIds ?? []).map((id) => nomDe.get(id) ?? '').filter(Boolean).join(', ') || 'votre rituel';
     const maintenant = new Date().toISOString();
     let statut = 'échec';
     let detail: string | undefined;
