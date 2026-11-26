@@ -7,11 +7,20 @@
    en dessous. Elle ne porte donc que le pictogramme, posé sur un champ de
    couleur, et c'est LE CHAMP qui dit de quelle application il s'agit.
 
-   QUATRE TUILES QUI NE SE CONFONDENT PAS :
+   CINQ TUILES QUI NE SE CONFONDENT PAS :
      · Maison MND   champ indigo, encre ivoire    la Maison
      · Ma Couronne  champ cuivre, encre ivoire    la cliente, la chaleur
      · Le Trône     champ indigo profond, encre cuivre   la Maison au travail
      · LOKAA        champ ivoire, encre indigo    le produit, à part
+     · Trône Terminal  champ ivoire, encre cuivre   le TPE de poche
+
+   TRÔNE TERMINAL (26 novembre 2026). « Change la couleur de l'app Trône
+   Terminal. Elle est la même que le Trône » (Yéman) : elle reprenait la tuile
+   du Trône, et les deux icônes se tenaient côte à côte sur le même téléphone.
+   Le même cuivre que le Trône, la parenté se lit ; le champ passe du plus
+   sombre au plus clair, la tuile ne se confond plus. Contre LOKAA (le même
+   champ ivoire), c'est l'encre qui sépare, cuivre contre indigo ; et LOKAA
+   n'est pas une app de l'équipe.
 
    « BIEN DISTINCT » SE MESURE, ET LA CHARTE NE DONNE PAS QUATRE CHAMPS.
    Calcul fait sur toutes les paires de couleurs, en écart perçu (Lab) : la
@@ -69,6 +78,7 @@ const APPS = [
   { clef: 'couronne', champ: charte.copper, encre: 'mono-ivoire.png', dit: 'Ma Couronne' },
   { clef: 'trone', champ: charte['indigo-deep'], encre: 'mono-copper.png', dit: 'Le Trône' },
   { clef: 'lokaa', champ: charte.ivoire, encre: 'mono-indigo.png', dit: 'LOKAA' },
+  { clef: 'terminal', champ: charte.ivoire, encre: 'mono-copper.png', dit: 'Trône Terminal' },
 ];
 
 const hex = (s) => [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
