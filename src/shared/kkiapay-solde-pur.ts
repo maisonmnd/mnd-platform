@@ -8,10 +8,13 @@
    lui, lit les soldes par `POST /merchant/me` sur api.kkiapay.me : la
    réponse porte `developerAccounts`, et chaque compte ses trois soldes —
    ceux que le tableau de bord affiche :
-     · `wallet_balance`                  le solde TOTAL ;
-     · `payment_wallet.availableBalance` le solde D'OPÉRATION (les paiements
-       en attente : le jour même pour le mobile money, 72 h pour la carte) ;
-     · `payout_wallet.availableBalance`  le DISPONIBLE, celui qu'on reverse.
+     · `wallet_balance`                  le REVENU TOTAL (« la somme de vos
+       transactions depuis votre premier paiement », dit son aide) ;
+     · `payment_wallet.availableBalance` le solde D'OPÉRATION (les
+       transactions pas encore reversées ; le mobile money passe au
+       disponible le jour même, la carte en 72 h) ;
+     · `payout_wallet.availableBalance`  le DISPONIBLE, ce que KkiaPay peut
+       reverser maintenant.
    Le tableau de bord ne garde que les comptes qui ont leurs deux portefeuilles.
 
    La fonction `kkiapay-solde` pose la même question avec les clés API de la

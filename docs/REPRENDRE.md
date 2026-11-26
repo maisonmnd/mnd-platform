@@ -2,6 +2,15 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## LE SOLDE KKIAPAY AU TRÔNE — 26 novembre 2026 : KKIAPAY REFUSE NOS CLÉS (fonction `kkiapay-solde` v1 en ligne, écran PAS publié)
+
+« Je veux lire mon solde KkiaPay directement sur le Trône, comme on a fait pour MTN MoMo » (Yéman).
+
+- **KkiaPay ne documente aucune route de solde** : ses SDK serveur (Node, Python) ne connaissent que `/api/v1/transactions/status`, `/api/v1/transactions/revert` et `/merchant/payouts/schedule`. Son tableau de bord (app.kkiapay.me, code public lu) prend les trois soldes dans `POST https://api.kkiapay.me/merchant/me` → `developerAccounts[]` : `wallet_balance` (revenu total depuis le premier paiement), `payment_wallet.availableBalance` (solde d'opération, pas encore reversé), `payout_wallet.availableBalance` (disponible) — avec un jeton de SESSION (`Authorization: Bearer`, après `auth/login`, MFA possible).
+- **Essai réel** (fonction `kkiapay-solde` v1, commit 1a6a78d04, Verify JWT éteint, direction seule, lecture seule) : les trois clés API de la Maison sur `/merchant/me` → **401**. Aucun solde lu. La fonction reste en ligne (elle dit le refus en clair). Règle `src/shared/kkiapay-solde-pur.ts`, banc `verifie-le-solde-kkiapay` (`--prouve` vert).
+- **L'écran** (`/kkiapay`, page « KkiaPay », direction seule, sur le modèle de MTN MoMo) est écrit mais NI commité sur main NI publié : il ne montrerait que le refus. Il attend le choix de Yéman : un jeton de session (son mot de passe KkiaPay en secret serveur, posé par elle — déconseillé : il donnerait au serveur la main sur tout le compte, reversements compris, et la MFA le casserait), une route ouverte par KkiaPay (lui écrire), ou le solde calculé par le Trône (registre `payments` moins frais et reversements).
+- **Piège** : la clé de service à présenter en Bearer est `CLE_SERVICE` (`sb_secret_…`) ; l'ancien jeton `service_role` est refusé par la passerelle (« Legacy API keys are disabled »).
+
 ## LE TPE DE POCHE, LOT 2b : « AUTRE MONTANT » ET LE NOM DE L'EMPLOYÉE SUR LE VERSEMENT — 26 novembre 2026, EN LIGNE (0248 passée ; `tpe-de-poche` v3 2026-11-26-b, `regler-la-seance` v49 et `collecte-mtn` v26 en 2026-11-26-a, Verify JWT éteint ; portail et Trône build 20261126060256 @ 0d76cd4f9, 323/323 et 573/573 ; essais sans téléphone ni argent verts : `autre`, `autre-paye`, `autre-abandon` à jeton bidon → 401 `coupe`, `tpe_autres` vide, `payments` inchangé ; reste l'essai réel avec Yéman)
 
 « Construis le lot 2b » (Yéman). La suite du 2a, tranchée par la maquette RsVNQvgB… : « Autre montant sert à un produit de la Gamme ou à un acompte, avec un motif ».
