@@ -1,0 +1,14 @@
+/* « Prévenez-moi si une place se libère ce jour-là » (26 novembre 2026, audit
+   B3). Les jetons de Ma Couronne seulement : le thème du soir (indigo, jamais
+   noir) les redéfinit, la liste le suit sans rien de plus. */
+.mc-attente { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hairline); display: grid; gap: 8px; }
+.mc-attente__aide { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--ink-soft); }
+.mc-attente__jours { display: flex; flex-wrap: wrap; gap: 6px; }
+.mc-attente__jour { cursor: pointer; font-family: var(--font-sans); font-size: 13px; color: var(--ink); background: transparent; border: 1px dashed var(--hairline); border-radius: 3px; padding: 8px 12px; min-height: 40px; transition: var(--transition-base); }
+.mc-attente__jour:hover { border-color: var(--mc-encre); }
+.mc-attente__jour.is-sel { border-style: solid; border-color: var(--mc-plein); background: var(--surface-card); }
+.mc-attente__jour:disabled { cursor: default; opacity: 0.6; }
+.mc-attente__envoyer { cursor: pointer; font-family: var(--font-sans); font-size: 13px; letter-spacing: 0.04em; color: var(--mc-sur-plein); background: var(--mc-plein); border: 1px solid var(--mc-plein); border-radius: 3px; padding: 12px 14px; min-height: 44px; transition: var(--transition-base); }
+.mc-attente__envoyer:disabled { opacity: 0.6; cursor: default; }
+.mc-attente__dit { font-size: 12.5px; line-height: 1.5; color: var(--ink); border-left: 2px solid var(--color-copper); padding-left: 10px; }
+.mc-attente__dit.is-ko { border-left-color: var(--mc-error, var(--color-copper)); }

@@ -19,8 +19,10 @@ import { EN_MOMENT } from './en-moment';
 import { EN_VISIO } from './en-visio';
 import { EN_DEVIS } from './en-devis';
 import { EN_RETOUR } from './en-retour';
+import { EN_ATTENTE } from './en-attente';
 
 export const EN: Record<string, string> = {
+  ...EN_ATTENTE,
   ...EN_COMMUN,
   ...EN_TABS,
   ...EN_BOOKING,

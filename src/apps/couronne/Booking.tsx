@@ -1,6 +1,7 @@
 import { asset } from '../../shared/asset';
 import { prixApresRemisePct } from '../../shared/arrondi-des-remises-pur';
 import FermetureAnnoncee from './FermetureAnnoncee';
+import PrevenezMoi from './PrevenezMoi';
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useBranch } from '../../shared/branches';
 import { fmtMoney } from '../../shared/currency';
@@ -2156,6 +2157,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                 </div>
               ) : null;
             })()}
+            <PrevenezMoi actif={totalSessions === 1 && occupesCharges} cellules={calCells} pour={beneficiaire ? null : clientId} branchId={branch.id} serviceIds={selectedIds} dureeMin={totalDuration} lourde={teteDeLaCible} />
 
             {selIso && (
               <div className="mc-fade">

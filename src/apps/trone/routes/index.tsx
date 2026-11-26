@@ -61,6 +61,8 @@ const NAV_DES_ECRANS: TroneGroup[] = [
          remplir à ses taux mesurés. Maquette 1opRHqoV… ; rangées sous le
          Centre de commande (choix du sélecteur). */
       { path: '/previsions', label: 'Les prévisions', icon: TrendingUp, Component: lazy(() => import('./pilotage/Previsions')) },
+      /* L'OCCUPATION DES FAUTEUILS (26 novembre 2026, audit B3) : onglet des prévisions (REUNIONS), aucune rubrique de plus. */
+      { path: '/occupation', label: 'L’occupation', icon: CalendarClock, Component: lazy(() => import('./pilotage/Occupation')) },
       /* LES PROJETS (24 octobre 2026) — planifier, confier, suivre. Maquette
          VJ5PJEGUPDbYKUgEdMUNbS ; rangés sous Direction (choix du sélecteur).
          Une tâche reste une demande du Fil : le projet ne fait que les grouper. */
@@ -385,6 +387,8 @@ export const REUNIONS: readonly Reunion[] = [
   { hote: '/fil', titre: 'Le Fil', onglets: [{ path: '/fil', label: 'Le fil' }, { path: '/tableau', label: 'Le tableau' }, { path: '/mes-taches', label: 'Mes tâches' }] },
   { hote: '/personnel', titre: 'Ressources humaines', onglets: [{ path: '/personnel', label: 'Ressources humaines' }, { path: '/paiements', label: 'Les paiements' }, { path: '/prets-personnel', label: 'Les prêts au personnel' }, { path: '/prestataires', label: 'Les prestataires' }] },
   { hote: '/parametres', titre: 'Paramètres', onglets: [{ path: '/parametres', label: 'Les réglages' }, { path: '/marque', label: 'La marque et le thème' }, { path: '/branches', label: 'Les branches' }] },
+  /* L'OCCUPATION DES FAUTEUILS (26 novembre 2026, audit B3) : à côté de ce qui viendra, ce qui remplit. */
+  { hote: '/previsions', titre: 'Les prévisions', onglets: [{ path: '/previsions', label: 'Les prévisions' }, { path: '/occupation', label: 'L’occupation' }] },
 ];
 /** Hors de la barre : l'adresse reste, l'écran aussi, et la réunion s'il en
     a une. Les Recommandations depuis le 14 octobre 2026 ; les seize autres
@@ -552,7 +556,7 @@ export const ANCIENS_DOMAINES: Record<string, string[]> = {
    un : la table ci-dessus ne se met pas à jour. Il s'ouvre par son
    département seul. On les NOMME ici, pour que la barre et la photographie
    restent vérifiables : un écran absent des deux listes est un oubli. */
-export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/tpe-de-poche', '/compte-courant','/point', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement', '/demander'];
+export const ECRANS_NES_APRES_LES_DEPARTEMENTS: readonly string[] = ['/tpe-de-poche', '/compte-courant','/point', '/parrainages', '/cartes-cadeaux', '/secretariat', '/centre-de-commande', '/atelier-des-contenus', '/chiffre-des-prestations', '/prets-personnel', '/entre-deux', '/discussions', '/projets', '/mes-taches', '/agents', '/avis-google', '/previsions', '/gerard', '/audience', '/dictee', '/assistants', '/la-journee', '/paiements', '/pourboires', '/mtn', '/besoins', '/classement', '/demander', '/occupation'];
 
 /** L'ancien domaine d'un écran, celui d'avant les départements. */
 export const ancienDomaineDe = (path: string): string | undefined =>

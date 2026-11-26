@@ -1,0 +1,14 @@
+/* « Prévenez-moi si une place se libère ce jour-là » (26 novembre 2026, audit
+   B3) : sous le mois, sobre, les jeux de la charte du site. */
+.prevenez-moi { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--filet); display: grid; gap: 10px; }
+.prevenez-moi__titre { margin: 0; font-family: var(--serif); font-weight: 300; font-size: 21px; color: var(--titre); }
+.prevenez-moi .legende { margin: 0; }
+.prevenez-moi__jours { display: flex; flex-wrap: wrap; gap: 8px; }
+.prevenez-moi__jour { cursor: pointer; font: inherit; font-size: 14px; color: var(--titre); background: var(--fond); border: 1px dashed var(--filet); border-radius: 4px; padding: 10px 14px; min-height: 44px; transition: border-color var(--t), background var(--t); }
+.prevenez-moi__jour:hover { border-color: var(--accent); }
+.prevenez-moi__jour.est-choisi { border-style: solid; border-color: var(--plein); background: var(--accent-clair); }
+.prevenez-moi__jour:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.prevenez-moi__jour:disabled { cursor: default; opacity: .6; }
+.prevenez-moi__form { display: grid; gap: 12px; }
+.prevenez-moi__form .btn { width: 100%; }
+.prevenez-moi__dit { margin: 0; font-size: 14px; color: var(--texte); border-left: 2px solid var(--accent); padding-left: 10px; }

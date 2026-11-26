@@ -1,0 +1,56 @@
+/* L'OCCUPATION DES FAUTEUILS (26 novembre 2026, audit B3). Une seule teinte
+   pour la carte, l'indigo, du plus pâle (vide) au plus profond (plein) ; les
+   chiffres en encre ; le cuivre ne sert que de filet. Les jetons du thème
+   seulement : sur une surface indigo, chaque case garde son filet. */
+.occ { display: grid; gap: 18px; }
+.occ-vues { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.occ-periode { font-family: var(--font-sans); font-size: 13px; color: var(--ink-soft); }
+
+.occ-tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.occ-tuile { display: grid; gap: 4px; padding: 14px 16px; background: var(--surface-card); border: 1px solid var(--hairline); border-top: 2px solid var(--color-copper); border-radius: var(--radius-md); font-family: var(--font-sans); }
+.occ-tuile span { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+.occ-tuile b { font-family: var(--font-serif); font-weight: 300; font-size: 34px; line-height: 1.05; color: var(--color-indigo); }
+.occ-tuile small { font-size: 12.5px; color: var(--ink-soft); }
+
+.occ-bloc { display: grid; gap: 10px; padding: 16px; background: var(--surface-card); border: 1px solid var(--hairline); border-radius: var(--radius-md); font-family: var(--font-sans); min-width: 0; }
+.occ-bloc h3 { margin: 0; font-family: var(--font-serif); font-weight: 300; font-size: 24px; color: var(--color-indigo); }
+.occ-aide { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.occ-aide b { color: var(--ink); font-weight: var(--weight-medium); }
+.occ-defile { overflow-x: auto; }
+
+.occ-carte { display: block; width: 100%; min-width: 560px; height: auto; font-family: var(--font-sans); }
+.occ-carte__heure { font-size: 10.5px; fill: var(--ink-soft); }
+.occ-carte__jour { font-size: 12px; fill: var(--ink); }
+.occ-carte__case { stroke: var(--hairline); stroke-width: 1; transition: opacity .2s ease; }
+.occ-carte__case:hover { opacity: .85; }
+.occ-carte__taux { font-size: 10.5px; fill: var(--ink); pointer-events: none; }
+.occ-carte__taux.sur-fonce { fill: var(--color-ivoire); }
+
+.occ-m-1 { fill: transparent; background: transparent; stroke-dasharray: 2 3; }
+.occ-m0 { fill: var(--indigo-50); background: var(--indigo-50); }
+.occ-m1 { fill: var(--indigo-100); background: var(--indigo-100); }
+.occ-m2 { fill: var(--indigo-200); background: var(--indigo-200); }
+.occ-m3 { fill: var(--indigo-400); background: var(--indigo-400); }
+.occ-m4 { fill: var(--indigo-600); background: var(--indigo-600); }
+
+.occ-legende { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-soft); }
+.occ-legende i { display: inline-block; width: 22px; height: 12px; border-radius: 2px; border: 1px solid var(--hairline); }
+.occ-legende small { flex-basis: 100%; font-size: 12px; }
+.occ-vides { margin: 0; padding: 10px 12px; border-left: 2px solid var(--color-copper); font-size: 13.5px; line-height: 1.5; color: var(--ink); background: var(--paper); border-radius: 2px; }
+.occ-vides b { font-weight: var(--weight-medium); }
+
+.occ-barres { display: block; width: 100%; max-width: 620px; height: auto; font-family: var(--font-sans); }
+.occ-barres__jour, .occ-barres__valeur { font-size: 12px; fill: var(--ink); }
+.occ-barres__base { stroke: var(--hairline); stroke-width: 1; }
+.occ-barres__barre { fill: var(--indigo-400); }
+
+.occ-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--ink); }
+.occ-table th { text-align: left; font-weight: var(--weight-medium); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); padding: 6px 8px; border-bottom: 1px solid var(--hairline); }
+.occ-table td { padding: 7px 8px; border-bottom: 1px solid var(--hairline); }
+.occ-table__ecart td { font-weight: var(--weight-medium); }
+.occ-offre-choix { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.occ-select { font: inherit; font-size: 13px; color: var(--ink); background: var(--paper); border: 1px solid var(--hairline); border-radius: 3px; padding: 7px 10px; }
+@media (max-width: 640px) {
+  .occ-table { font-size: 12px; }
+  .occ-table th, .occ-table td { padding: 6px 4px; }
+}

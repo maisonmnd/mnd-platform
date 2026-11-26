@@ -699,6 +699,8 @@ const regles: Regle[] = [
         'bouton-de-l-equipe': { fichier: 'src/shared/equipe-du-matin-pur.ts', extrait: (s) => entre(s, 'bouton-de-l-equipe') },
         /* L'accord des nouvelles, d'un bouton (26 novembre 2026, l'audit B1) : quand la question se pose et ce qui s'écrit, recopiés dans regler-la-seance. */
         'accord-des-nouvelles': { fichier: 'src/shared/accord-des-nouvelles-pur.ts', extrait: (s) => entre(s, 'accord-des-nouvelles') },
+        /* La liste d'attente d'un jour plein (26 novembre 2026, audit B3) : la relecture de la demande, recopiée dans demande-submit. */
+        'liste-d-attente': { fichier: 'src/shared/liste-d-attente-pur.ts', extrait: (s) => entre(s, 'liste-d-attente') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

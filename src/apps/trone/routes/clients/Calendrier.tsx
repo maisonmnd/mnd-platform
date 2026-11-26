@@ -26,6 +26,7 @@ import { distanceDeLaSemaine, distanceDite, distanceDuMois, lundiDe } from './al
 import { voiesDuJour } from '../../../../shared/voies-pur';
 import { etatDuReport } from '../../../../shared/a-reprogrammer-pur';
 import { etatDuReportDit, rdvsAReprogrammer } from './a-reprogrammer';
+import { ListeDAttente } from './ListeDAttente';
 
 /* Calendrier — la journée par Maître, la semaine d'un regard. 08:00 → 18:00.
    Déplacer un rendez-vous : glisser le bloc vers un autre créneau (jour) ou un
@@ -520,6 +521,7 @@ export default function Calendrier() {
         </div>
       )}
 
+      <ListeDAttente sansPrix={estMaitre} />
       {/* À REPROGRAMMER (19 novembre 2026) : les rendez-vous empêchés quittent
           la grille (leur place est rendue) et attendent ici leur nouvelle date. */}
       <div className={aReprogrammer.length ? 'trc-cal-et-report' : undefined}>

@@ -29,6 +29,7 @@ import {
   prixConvenusDuRetour, type CarteDesRemises,
 } from '../places-du-site-pur';
 import Demande from './Demande';
+import PrevenezMoi from './PrevenezMoi';
 import { raisonDuRefus } from '../refus-du-serveur';
 import { diagnosticGarde, oublieLeDiagnostic } from '../diagnostic-garde';
 import { lienLu } from '../../../shared/lien-reservation';
@@ -2016,6 +2017,7 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                 )}
               </>
             )}
+          <PrevenezMoi pret={etatDesPlaces === 'pret'} agenda={agenda} horizon={horizon} heuresParJour={heuresParJour} serviceIds={serviceIds} dureeMin={dureeTotale} lourde={teteLourde(lockCountAnnonce)} aujourdhui={jourDeCotonou(minute * 60_000)} />
         </div>
       )}
 

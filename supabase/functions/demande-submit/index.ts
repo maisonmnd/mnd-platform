@@ -261,7 +261,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: 
 /** La version de ce fichier : ouvrir l'adresse de la fonction la dit (405),
     pour ne jamais chercher une panne dans un fichier qui n'est pas celui
     qu'on croit déployé. */
-const VERSION = '2026-11-25-a · les prestations en clair dans rdv_a_confirmer (« Rituel Sówà™ (traitement anti-poux) ») ; 2026-11-20-b · un petit service partage UNE place avec un seul voisin (placesPrises, places_prises 0242) : plus jamais trois clientes dans deux fauteuils ; 2026-11-20-a · le petit service partage l heure : un rendez-vous d une heure ou moins se pose chez Team a cote de n importe quelle tete, et un petit service et son voisin ne prennent qu une place en ligne (petitService, partagentLaPlace, 0240) ; 2026-11-18-d · deux têtes chez Team : le juge du site, de Ma Couronne et du déplacement lit la tête (le calibre annoncé, la fiche) ; Team reçoit une seconde cliente à la même heure quand l’une des deux a moins de 150 locks, jamais deux lourdes ; le compte annoncé s’écrit sur le rendez-vous (locksAnnonces) ; 2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
+const VERSION = '2026-11-26-a · la liste d attente d un jour plein ({ prevenir: place }, du site et de Ma Couronne, table liste_d_attente 0252, bloc ⟨liste-d-attente⟩) ; 2026-11-25-a · les prestations en clair dans rdv_a_confirmer (« Rituel Sówà™ (traitement anti-poux) ») ; 2026-11-20-b · un petit service partage UNE place avec un seul voisin (placesPrises, places_prises 0242) : plus jamais trois clientes dans deux fauteuils ; 2026-11-20-a · le petit service partage l heure : un rendez-vous d une heure ou moins se pose chez Team a cote de n importe quelle tete, et un petit service et son voisin ne prennent qu une place en ligne (petitService, partagentLaPlace, 0240) ; 2026-11-18-d · deux têtes chez Team : le juge du site, de Ma Couronne et du déplacement lit la tête (le calibre annoncé, la fiche) ; Team reçoit une seconde cliente à la même heure quand l’une des deux a moins de 150 locks, jamais deux lourdes ; le compte annoncé s’écrit sur le rendez-vous (locksAnnonces) ; 2026-11-18-c · une note de « Ses modèles chez Meta » n’éteint plus l’attente : la bascule lit la liste relue chez Meta et les notes de la direction ensemble (⟨modeles-meta⟩) ; 2026-11-18-b · Ma Couronne reconnaît la fiche que la Maison a inscrite avant son compte (la règle d’est_ma_tete : la fiche qui porte son compte, le payeur désigné par sa fiche) ; « Je confirme » écrit confirme toutes les places de ce numéro qui attendent son oui, et la réponse les dit ; un message de l’attente qui ne part pas (échec, plafond) ou que Meta dit non remis confirme la place sans attente, comme un refus du modèle ; 2026-11-18-a · la décoloration se réserve en ligne comme la coloration (son atelier, La Transformation) ; la clé du serveur comparée à temps constant (⟨cle-du-cron⟩) ; l’heure d’un rendez-vous déplacé tenue sur la grille ; le rituel GBÀTÀ™ (le défaisage) se réserve en ligne ; le rendez-vous en attente (la place tenue deux heures, « Je confirme » sur WhatsApp, l’acompte quand un geste en porte un ; tant que le modèle n’est pas approuvé, la place naît confirmée comme avant) ; un plafond par numéro et par adresse ; l’heure tenue sur la grille ; la durée au calibre annoncé ; les codes comptés par la clé du numéro ; déplacer deux fois au plus, sous le verrou des places ; Ma Couronne passe par le serveur ; 2026-11-17-a · le juge du serveur refuse lui aussi avant 08:30 (laPlaceTient, le rendez-vous déplacé) : une page en cache ou un envoi direct ne passe plus ; 2026-11-16-a · plus aucun rendez-vous avant 08:30 (PREMIER_RENDEZ_VOUS_MIN, la place du serveur le sait) ; 2026-11-12-a · le jour même sur le site (ses heures pas encore commencées à Cotonou, place-du-serveur et pose_si_libre 0203) ; 2026-11-07-a · déplacer son rendez-vous depuis le site (les places de la personne qui la reçoit, aussitôt déplacé, 24 h avant au plus tard) ; la réservation jusqu’au dernier jour du troisième mois qui suit (place-du-serveur) ; dans le doute, pas de remise ; les places limitées (jour vide, places décomptées, une seule remise) ; le second fauteuil en semaine ; la référence, la confirmation à liens, la page du rendez-vous, la cliente qui revient';
 
 /** LE SECOND FAUTEUIL, PAS DAVANTAGE (2 novembre 2026, 0152) : la copie de
     `PLACES_EN_LIGNE_AU_PLUS` (src/shared/agenda-pur.ts), hors des repères. */
@@ -4800,6 +4800,163 @@ async function reserveDepuisLaCouronne(req: Request, ip: string, body: Record<st
   });
 }
 
+/* ══ LA LISTE D'ATTENTE D'UN JOUR PLEIN — 26 novembre 2026 (audit B3) ═════
+   « Prévenez-moi si une place se libère ce jour-là », sur le site et dans Ma
+   Couronne. Le bloc ⟨liste-d-attente⟩ est recopié de
+   `src/shared/liste-d-attente-pur.ts` (douze lunes R8,
+   verifie-remplir-la-semaine) ; cette fonction seule écrit la table
+   `liste_d_attente` (0252). Rien ne part à la cliente : l'équipe la prévient
+   par la main, depuis le Calendrier du Trône, quand une place se libère. */
+/* ⟨liste-d-attente⟩ */
+/** La table, écrite par `demande-submit` seule (0252). */
+export const TABLE_DE_L_ATTENTE = 'liste_d_attente';
+/** Jusqu'où l'on peut attendre : l'horizon de la réservation en ligne (ce mois et les trois suivants). */
+export const HORIZON_DE_L_ATTENTE_JOURS = 124;
+/** Les demandes encore vivantes d'un même numéro, au plus. */
+export const ATTENTES_PAR_NUMERO = 3;
+
+export type SourceDeLAttente = 'site' | 'couronne';
+/** attend : dans la file ; proposee : la place lui a été proposée, on attend
+    sa réponse ; les trois autres closent sa demande. */
+export type StatutDeLAttente = 'attend' | 'proposee' | 'prise' | 'pas-interessee' | 'sans-reponse';
+
+export type DemandeDAttente = {
+  id: string;
+  branchId: string;
+  /** Le jour plein qu'elle attend (AAAA-MM-JJ, jour de Cotonou). */
+  jour: string;
+  /** Le dépôt (ISO) : il fait son rang dans la file. */
+  creeLe: string;
+  source: SourceDeLAttente;
+  prenom: string;
+  /** E.164, posé par le serveur. */
+  telephone: string;
+  /** Sa fiche, quand elle vient de Ma Couronne. */
+  clientId?: string;
+  /** Ce qu'elle voulait réserver ce jour-là. */
+  serviceIds: string[];
+  /** La durée que la page lui montrait, en minutes. */
+  dureeMin?: number;
+  /** Une tête de 150 locks ou plus (la règle des deux têtes). */
+  lourde?: boolean;
+  statut: StatutDeLAttente;
+  /** L'heure proposée, quand, par qui. */
+  proposee?: { heure: string; le: string; par?: string };
+  /** Quand sa demande s'est close, et par qui. */
+  closeLe?: string;
+  closePar?: string;
+};
+
+const JOUR_DE_L_ATTENTE = /^\d{4}-\d{2}-\d{2}$/;
+const midiDeLAttente = (j: string): number => Date.UTC(Number(j.slice(0, 4)), Number(j.slice(5, 7)) - 1, Number(j.slice(8, 10)), 12);
+/** Les jours de `du` à `au` (négatif si `au` est avant). */
+export const ecartDeLAttente = (du: string, au: string): number => Math.round((midiDeLAttente(au) - midiDeLAttente(du)) / 86_400_000);
+const propreDeLAttente = (v: unknown, max: number): string => String(v ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+export type AttenteLue =
+  | { ok: true; jour: string; prenom: string; serviceIds: string[]; dureeMin: number; lourde: boolean }
+  | { ok: false; raison: 'jour' | 'passe' | 'loin' | 'prenom' | 'gestes' };
+
+/** CE QUE LA PORTE REÇOIT, RELU. Un jour réel, d'aujourd'hui (Cotonou) à
+    l'horizon ; un prénom quand la page doit le dire (le site) ; les gestes
+    voulus (un au moins, six au plus) ; une durée bornée à douze heures. */
+export function demandeDAttenteLue(d: unknown, aujourdhui: string, prenomExige = true): AttenteLue {
+  const x = (d && typeof d === 'object' ? d : {}) as Record<string, unknown>;
+  const jour = String(x.jour ?? '').slice(0, 10);
+  if (!JOUR_DE_L_ATTENTE.test(jour) || Number.isNaN(midiDeLAttente(jour)) || new Date(midiDeLAttente(jour)).toISOString().slice(0, 10) !== jour) return { ok: false, raison: 'jour' };
+  if (jour < aujourdhui) return { ok: false, raison: 'passe' };
+  if (ecartDeLAttente(aujourdhui, jour) > HORIZON_DE_L_ATTENTE_JOURS) return { ok: false, raison: 'loin' };
+  const prenom = propreDeLAttente(x.prenom, 60);
+  if (prenomExige && prenom.length < 2) return { ok: false, raison: 'prenom' };
+  const serviceIds = (Array.isArray(x.serviceIds) ? x.serviceIds : []).slice(0, 6).map((s) => propreDeLAttente(s, 60)).filter(Boolean);
+  if (serviceIds.length === 0) return { ok: false, raison: 'gestes' };
+  const duree = Math.round(Number(x.dureeMin) || 0);
+  return { ok: true, jour, prenom, serviceIds, dureeMin: Math.max(0, Math.min(720, duree)), lourde: x.lourde === true };
+}
+
+/** Une demande vit-elle encore ? Dans la file ou proposée, et son jour pas passé. */
+export const attenteVivante = (a: Pick<DemandeDAttente, 'statut' | 'jour'>, aujourdhui: string): boolean =>
+  (a.statut === 'attend' || a.statut === 'proposee') && String(a.jour ?? '') >= aujourdhui;
+/* ⟨/liste-d-attente⟩ */
+
+async function prevenirDUnePlace(req: Request, ip: string, body: Record<string, unknown>): Promise<Response> {
+  if (!(await allowRate(ip, 'prevenir_place', 10))) return json({ ok: false, error: 'rate_limited' }, 429);
+  const d = (body.data ?? {}) as Record<string, unknown>;
+  const aujourdhui = jourDeLaMaison();
+  const deLaCouronne = body.couronne === true;
+  let prenom = '';
+  let telephone = '';
+  let clientId = '';
+  let brancheVoulue = texte(d.branchId, 80);
+  if (deLaCouronne) {
+    /* MA COURONNE : sa session, SA fiche (la règle d'`est_ma_tete`, comme la
+       réservation) ; son prénom et son numéro se lisent sur la fiche, jamais
+       sur ce que l'appareil envoie. */
+    const session = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+    const { data: qui, error: errQui } = session ? await admin.auth.getUser(session) : { data: null, error: { message: 'sans session' } };
+    const uid = String((qui as { user?: { id?: string } } | null)?.user?.id ?? '');
+    if (errQui || !uid) return json({ ok: false, error: 'session' }, 401);
+    if (!(await allowRate(uid, 'prevenir_place_compte', 10, 60))) return json({ ok: false, error: 'rate_limited' }, 429);
+    const pour = texte(d.pour, 80) || uid;
+    const { data: ficheLue, error: errFiche } = await admin.from('clients').select('id, branch_id, data').eq('id', pour).maybeSingle();
+    if (errFiche) return json({ ok: false, error: 'panne' }, 503);
+    const fiche = ((ficheLue?.data ?? null) as Record<string, any> | null);
+    if (!fiche || fiche.archived === true || !(pour === uid || String(fiche.authUserId ?? '') === uid)) return json({ ok: false, error: 'tete' }, 403);
+    prenom = prenomDUsage(fiche);
+    telephone = telephoneNormalise(String(fiche.phone ?? ''));
+    if (!telephone) return json({ ok: false, error: 'telephone' }, 400);
+    clientId = pour;
+    brancheVoulue = brancheVoulue || String(ficheLue?.branch_id ?? fiche.branchId ?? '');
+  }
+  const lue = demandeDAttenteLue(d, aujourdhui, !deLaCouronne);
+  if (!lue.ok) return json({ ok: false, error: lue.raison }, 400);
+  if (!deLaCouronne) {
+    prenom = lue.prenom;
+    telephone = telephoneNormalise(String(d.telephone ?? ''), String(d.dial ?? '+229'));
+    if (!telephone) return json({ ok: false, error: 'telephone' }, 400);
+  }
+  const branche = await brancheParDefaut(brancheVoulue);
+
+  /* UN JOUR FERMÉ NE S'ATTEND PAS : la semaine et les journées exceptionnelles
+     de la Maison, les mêmes murs que la réservation. */
+  const { data: docs, error: errDocs } = await admin.from('documents').select('key, data').in('key', ['mnd_settings', 'mnd_horaires_exceptions']);
+  if (errDocs) return json({ ok: false, error: 'panne' }, 503);
+  const doc = (cle: string): any => ((docs ?? []) as { key: string; data?: any }[]).find((x) => x.key === cle)?.data;
+  const semaine: HeureDeLaSemaine[] = (Array.isArray(doc('mnd_settings')?.hours) ? doc('mnd_settings').hours : [])
+    .filter((h: any) => !!h && typeof h.key === 'string')
+    .map((h: any) => ({ key: String(h.key), open: String(h.open ?? ''), close: String(h.close ?? ''), closed: !!h.closed }));
+  const exceptions: ExceptionDHoraire[] = (Array.isArray(doc('mnd_horaires_exceptions')) ? doc('mnd_horaires_exceptions') : [])
+    .filter((e: any) => !!e && typeof e.date === 'string')
+    .map((e: any) => ({ date: String(e.date), ...(e.staffId ? { staffId: String(e.staffId) } : {}), ...(e.open ? { open: String(e.open) } : {}), ...(e.close ? { close: String(e.close) } : {}), closed: !!e.closed }));
+  if (ouvertureDuJour(lue.jour, semaine, exceptions).closed) return json({ ok: false, error: 'ferme' }, 409);
+
+  /* LES SIENNES, PAR LA CLÉ DU NUMÉRO : le même jour déjà attendu répond
+     « déjà sur la liste » ; trois jours attendus au plus. */
+  const { data: siennes, error: errSiennes } = await admin.from(TABLE_DE_L_ATTENTE).select('id, data')
+    .in('data->>telephone', numerosDeLaMemePersonne(telephone)).gte('data->>jour', aujourdhui).limit(50);
+  if (errSiennes) return json({ ok: false, error: 'panne' }, 503);
+  const vivantes = ((siennes ?? []) as { data?: DemandeDAttente }[]).map((r) => r.data).filter((a): a is DemandeDAttente => !!a && attenteVivante(a, aujourdhui));
+  if (vivantes.some((a) => a.jour === lue.jour)) return json({ ok: true, deja: true });
+  if (vivantes.length >= ATTENTES_PAR_NUMERO) return json({ ok: false, error: 'trop' }, 409);
+
+  const id = `att-${crypto.randomUUID()}`;
+  const demande: DemandeDAttente = {
+    id, branchId: branche.id, jour: lue.jour, creeLe: new Date().toISOString(),
+    source: deLaCouronne ? 'couronne' : 'site', prenom, telephone,
+    ...(clientId ? { clientId } : {}),
+    serviceIds: lue.serviceIds,
+    ...(lue.dureeMin > 0 ? { dureeMin: lue.dureeMin } : {}),
+    ...(lue.lourde ? { lourde: true } : {}),
+    statut: 'attend',
+  };
+  const { error } = await admin.from(TABLE_DE_L_ATTENTE).insert({ id, branch_id: branche.id, data: demande });
+  if (error) {
+    console.error('demande-submit: liste d attente', error.message);
+    return json({ ok: false, error: 'panne' }, 503);
+  }
+  return json({ ok: true });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method', version: VERSION }, 405);
@@ -4864,6 +5021,15 @@ Deno.serve(async (req) => {
   /* MA COURONNE PASSE PAR LE SERVEUR — 17 novembre 2026 : la session de la
      cliente, son seau, et le serveur décide du statut, de la durée, de la
      remise et de l'acompte. */
+  /* LA LISTE D'ATTENTE D'UN JOUR PLEIN — 26 novembre 2026 : son seau à elle. */
+  if (body.prevenir === 'place') {
+    try {
+      return await prevenirDUnePlace(req, ip, body);
+    } catch (e) {
+      console.error('demande-submit: prevenir', String((e as Error)?.message ?? e).slice(0, 200));
+      return json({ ok: false, error: 'panne' }, 500);
+    }
+  }
   if (body.couronne === 'reserver') {
     try {
       return await reserveDepuisLaCouronne(req, ip, body);
