@@ -44,11 +44,11 @@ import { enPause } from '../../../../shared/formules-en-lunes-pur';
 import { regardADeduire, remiseAvecLeRegard, type RegardADeduire } from '../../../../shared/regard-deduit-pur';
 import { useEstDirection, useVieDuRendezVous, TamponDeNaissance, SaVie, nombreDeGestes } from '../_vie';
 import { referenceDuRendezVous } from '../../../../shared/lien-du-rdv-pur';
-import { ceQueDitLaSuggestion, estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
+import { ceQueDitLaSuggestion, ceQueDitLeRetourEnSuggestion, estSuggere, peutRepasserEnSuggestion } from '../../../../shared/rendez-vous-suggere-pur';
 import { ceQueDitLAttente, etatDeLAttente, motDuStatut, seLibereraSansReponse } from '../../../../shared/rendez-vous-en-attente-pur';
 import { estAReprogrammer } from '../../../../shared/a-reprogrammer-pur';
 import { annuleLeReport, etatDuReportDit, marquesDeLaRepriseAuTrone, metsAReprogrammer } from './a-reprogrammer';
-import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
+import { noteSonOui, repasseEnSuggestion } from '../../../../shared/carte-du-prochain-rituel';
 import { useStaff as useMaTeteDuRdv } from '../../../../shared/auth';
 import { momentDuRdv, poseUnRendezVous } from '../../../../shared/agenda';
 import { useRdvsDeLaMaison } from '../../../../shared/essai';
@@ -5668,6 +5668,25 @@ function RdvModalCorps({
                 ))}
               </Select>
             </Field>
+          )}
+          {/* REPASSER EN SUGGESTION (26 novembre 2026, « sans message ») :
+              l'inverse de « Elle a dit oui ». Le geste s'écrit tout de suite,
+              comme son oui ; l'encart « Suggéré par la Maison » paraît alors en
+              haut, avec « Elle a dit oui » pour revenir. Rien ne part vers
+              elle ; règle et gardes dans rendez-vous-suggere-pur. */}
+          {appt && rdvDuMagasin && status === 'confirmé' && peutRepasserEnSuggestion(rdvDuMagasin, Date.now()) && (
+            <button
+              type="button"
+              className="trv-prochain__lien"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => {
+                toast(repasseEnSuggestion(rdvDuMagasin.id)
+                  ? ceQueDitLeRetourEnSuggestion(rdvDuMagasin, { court: (iso) => frShortAn(iso), aujourdhui: todayISO() })
+                  : 'Ce rendez-vous ne peut plus repasser en suggestion.');
+              }}
+            >
+              Repasser en suggestion
+            </button>
           )}
           {/* LES DEUX, OU SEULEMENT ELLE ? — 4 novembre 2026 : « annulé » sur
               un rendez-vous du foyer pose la question ici, et l'enregistrement

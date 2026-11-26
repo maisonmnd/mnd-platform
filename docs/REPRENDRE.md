@@ -2,6 +2,16 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
+## « REPASSER EN SUGGESTION », SANS MESSAGE — 26 novembre 2026 (Trône seul ; aucun SQL, aucune fonction, aucun secret)
+
+« Comment passer un RDV du mode confirmer à suggérer ? », puis « oui, ajoute Repasser en suggestion, sans message » (Yéman). Jusqu'ici, le choix « Suggéré par la Maison » / « Elle l'a choisi avec nous » ne vivait que dans la carte « Nouveau rendez-vous », tant qu'elle était ouverte ; le seul geste d'après allait dans l'autre sens (« Elle a dit oui »).
+
+- **Le geste** : « Repasser en suggestion », dans la fiche du rendez-vous (sous « Statut », volet « Prix, formule, note ») et dans le menu du Carnet (section « Statut », à côté de « Elle a dit oui »). Il s'écrit tout de suite, comme son oui ; l'encart « Suggéré par la Maison » paraît alors en haut de la fiche, et « Elle a dit oui » le défait.
+- **Ce qu'il écrit** (`enSuggestion`, shared/rendez-vous-suggere-pur.ts, hors du bloc recopié) : `suggereLe` daté du geste, `sansConfirmation: true` ; `confirmeeParLaClienteLe`, `ouiNoteParLeComptoir` et `autreMomentDemandeLe` tombent. **Rien ne part au geste** : `sansConfirmation` écarte le rendez-vous de confirmation-rdv (sans lui, une confirmation ratée, ou une place prise sur WhatsApp, toujours « neuve », se serait rattrapée en proposition au passage suivant).
+- **Ensuite, il vit comme toute suggestion** : place tenue, rien ne s'efface seul, aucun rappel (ni la veille, ni deux heures avant) tant qu'elle n'a pas dit oui, relance `reprise_proposee` trois jours avant si ce jour n'est pas passé (le toast le dit).
+- **Gardes** (`peutRepasserEnSuggestion`) : confirmé, à venir à l'heure de Cotonou, avec sa fiche, pas déjà suggéré, et **jamais une place prise en ligne** (`attenduJusquAu`) : son oui retiré, `libere_les_places_en_attente` (0222) l'annulerait dans les cinq minutes.
+- **Bancs** : `verifie-repasser-en-suggestion` 43 (`--prouve` 14/14) ; `verifie-le-rendez-vous-suggere` 68, `verifie-la-carte-du-prochain-rituel` 26, `verifie-le-rendez-vous-en-attente` 121 tiennent ; `verifie-les-douze-lunes` garde ses deux ratés d'avant (R8 : repères ⟨en-clair⟩, ⟨tpe-de-poche⟩, ⟨kkiapay-solde⟩ non enregistrés ; R12 : pages /m/ non générées) ; typecheck 0.
+
 ## LE SOLDE KKIAPAY AU TRÔNE — 26 novembre 2026 : KKIAPAY REFUSE NOS CLÉS (fonction `kkiapay-solde` v1 en ligne, écran PAS publié)
 
 « Je veux lire mon solde KkiaPay directement sur le Trône, comme on a fait pour MTN MoMo » (Yéman).

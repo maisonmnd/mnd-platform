@@ -38,16 +38,16 @@ import { voitLesPrix } from '../index';
 import { type Service } from '../../../../shared/catalog';
 import {
   Avatar, PayStatusPill, RdvModal, ReminderBell, SourceBadge, type RdvInitial,
-  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, apptDurationMin, frDay, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  addDaysISO, apptLabel, apptNetXof, apptGammeXof, apptPayState, montantDuCarnet, apptDueXof, apptDepositCreditXof, apptDurationMin, frDay, frShortAn, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
   tarifsDuRituel, PortesWhatsApp, DrillModal, type Drill,
 } from './_shared';
 import { cancelAppointmentPayment, deshonoreLeRituel, factureAEnvoyer, honoreSansEncaisser, PayAppointmentModal, piecesDuFoyer, prenomsDuFoyer } from './actions';
 import { EnDirect } from './EnDirect';
 import { FenetreDuProchainRituel } from '../vente/SonProchainRituel';
 import { BadgeSuggere } from './BadgeSuggere';
-import { estSuggere } from '../../../../shared/rendez-vous-suggere-pur';
+import { ceQueDitLeRetourEnSuggestion, estSuggere, peutRepasserEnSuggestion } from '../../../../shared/rendez-vous-suggere-pur';
 import { estEnAttente, etatDeLAttente, motDuStatut } from '../../../../shared/rendez-vous-en-attente-pur';
-import { noteSonOui } from '../../../../shared/carte-du-prochain-rituel';
+import { noteSonOui, repasseEnSuggestion } from '../../../../shared/carte-du-prochain-rituel';
 import { laCarteSOuvreApresLHonneur, sonProchainDejaPose } from '../../../../shared/carte-du-prochain-rituel';
 import { momentDuMessage } from '../../../../shared/salle-des-envois';
 import { rdvsDuFoyerLeJour } from '../../../../shared/facture-du-foyer-pur';
@@ -1051,6 +1051,15 @@ export default function Carnet() {
                     « Confirmé » ; la relance trois jours avant ne part plus. */}
                 {estSuggere(a) && (
                   <button onClick={() => { noteSonOui(a.id); setMenuFor(null); toast('Son oui est noté : le rendez-vous est confirmé, la relance ne partira pas.'); }}>Elle a dit oui</button>
+                )}
+                {/* REPASSER EN SUGGESTION (26 novembre 2026, « sans message ») :
+                    l'inverse, au même endroit. Rien ne part vers elle. */}
+                {peutRepasserEnSuggestion(a, Date.now()) && (
+                  <button onClick={() => {
+                    const fait = repasseEnSuggestion(a.id);
+                    setMenuFor(null);
+                    toast(fait ? ceQueDitLeRetourEnSuggestion(a, { court: (iso) => frShortAn(iso), aujourdhui: todayISO() }) : 'Ce rendez-vous ne peut plus repasser en suggestion.');
+                  }}>Repasser en suggestion</button>
                 )}
                 {canConfirm && (
                   <button onClick={() => { setStatus(a.id, 'confirmé'); setMenuFor(null); }}>Confirmer le rendez-vous</button>

@@ -20,6 +20,7 @@
 import { appointmentsStore, type Appointment } from './agenda';
 import { clientsStore } from './clients';
 import { pourquoiPasDeRepriseIci, prochainDejaPose, rituelDeLaRepriseEffacee } from './reprise-nue';
+import { enSuggestion, peutRepasserEnSuggestion } from './rendez-vous-suggere-pur';
 
 const aujourdhui = (): string => {
   const d = new Date();
@@ -65,6 +66,21 @@ export function noteSonOui(rdvId: string): void {
   appointmentsStore.set((prev) => prev.map((a) => (a.id === rdvId && !a.confirmeeParLaClienteLe
     ? { ...a, confirmeeParLaClienteLe: new Date().toISOString(), ouiNoteParLeComptoir: true, autreMomentDemandeLe: undefined }
     : a)));
+}
+
+/** « REPASSER EN SUGGESTION » (26 novembre 2026, sans message) : l'inverse de
+    « Elle a dit oui ». La règle et ses gardes sont pures
+    (`peutRepasserEnSuggestion`, `enSuggestion`, rendez-vous-suggere-pur) ;
+    rien ne s'écrit si le rendez-vous ne s'y prête plus au moment du geste. */
+export function repasseEnSuggestion(rdvId: string): boolean {
+  const maintenant = Date.now();
+  let fait = false;
+  appointmentsStore.set((prev) => prev.map((a) => {
+    if (a.id !== rdvId || !peutRepasserEnSuggestion(a, maintenant)) return a;
+    fait = true;
+    return enSuggestion(a, new Date(maintenant).toISOString());
+  }));
+  return fait;
 }
 
 /** À la fermeture : le drapeau tombe, la confirmation part une fois. */

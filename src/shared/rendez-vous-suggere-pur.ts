@@ -111,6 +111,63 @@ export function ceQueDitLaSuggestion(
     : `Proposé le ${le} · sans réponse`;
 }
 
+/* ── REPASSER EN SUGGESTION · 26 novembre 2026 ─────────────────────────
+   « Oui, ajoute Repasser en suggestion, sans message » (Yéman, 26 novembre
+   2026). Le geste inverse de « Elle a dit oui » : un rendez-vous confirmé
+   redevient une suggestion de la Maison.
+   RIEN NE PART AU GESTE : ni la proposition, ni « c'est confirmé ».
+   `sansConfirmation` se pose, et confirmation-rdv ne regarde plus ce
+   rendez-vous (sans lui, une confirmation ratée ou une place prise sur
+   WhatsApp se serait rattrapée en proposition au passage suivant).
+   Ensuite il vit comme toute suggestion : la place reste tenue, rien ne
+   s'efface seul, aucun rappel ne part tant qu'elle n'a pas dit oui, et la
+   relance part trois jours avant si ce jour n'est pas passé.
+   JAMAIS SUR UNE PLACE PRISE EN LIGNE (`attenduJusquAu`) : son oui retiré,
+   la base la libérerait dans les cinq minutes (libere_les_places_en_attente,
+   0222). Ni sur un rendez-vous passé, ni sans fiche, ni déjà suggéré.
+   `scripts/verifie-repasser-en-suggestion.mjs` l'éprouve (et `--prouve`). */
+
+/** La minute de Cotonou (UTC+1, sans heure d'été), « 2026-11-26 14:05 ». */
+const minuteACotonou = (ms: number): string => new Date(ms + 3_600_000).toISOString().slice(0, 16).replace('T', ' ');
+
+/** Ce que le geste lit d'un rendez-vous. */
+export type RendezVousARepasser = MarquesDeLaSuggestion & {
+  clientId?: unknown; date?: unknown; time?: unknown; attenduJusquAu?: unknown;
+};
+
+/** Le bouton se montre : confirmé, à venir (à l'heure de Cotonou), avec sa
+    fiche, pas déjà suggéré, pas pris en ligne. */
+export function peutRepasserEnSuggestion(a: RendezVousARepasser | null | undefined, maintenantMs: number): boolean {
+  if (!a || a.status !== 'confirmé' || estSuggere(a)) return false;
+  if (typeof a.clientId !== 'string' || a.clientId.trim() === '') return false;
+  if (marquePosee(a.attenduJusquAu)) return false;
+  const jour = typeof a.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.date) ? a.date : '';
+  const heure = typeof a.time === 'string' && /^\d{2}:\d{2}$/.test(a.time) ? a.time : '';
+  if (!jour || !heure || !Number.isFinite(maintenantMs)) return false;
+  return `${jour} ${heure}` > minuteACotonou(maintenantMs);
+}
+
+/** Ce que le geste écrit : la marque de la Maison (datée de maintenant), le
+    drapeau qui tait la confirmation ; son oui, celui du comptoir et « un autre
+    moment » tombent. Rien d'autre ne bouge. */
+export function enSuggestion<A extends RendezVousARepasser & { sansConfirmation?: boolean; ouiNoteParLeComptoir?: boolean; suggereLe?: string }>(
+  a: A,
+  maintenantIso: string,
+): A {
+  const { confirmeeParLaClienteLe: _oui, ouiNoteParLeComptoir: _comptoir, autreMomentDemandeLe: _autre, ...reste } = a;
+  return { ...reste, suggereLe: maintenantIso, sansConfirmation: true } as A;
+}
+
+/** Ce que le Trône dit après le geste. `court` : « 3 déc. 2026 ». */
+export function ceQueDitLeRetourEnSuggestion(a: { date?: unknown }, o: { court: (iso: string) => string; aujourdhui: string }): string {
+  const jour = typeof a.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.date) ? a.date : '';
+  const relance = jour ? jourDeLaRelance(jour) : '';
+  const suite = relance && relance >= o.aujourdhui
+    ? `la relance part le ${o.court(relance)}`
+    : 'trop proche pour la relance de trois jours avant';
+  return `Repassé en suggestion, sans message. Aucun rappel tant qu’elle n’a pas dit oui ; ${suite}.`;
+}
+
 /* ── LES SEMAINES DE LA SUITE ──────────────────────────────────────────── */
 
 /** « 3, 4, 5, 6, 8 et 12 semaines » (Yéman). */
