@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
         [--seulement id,id]   ne pose que ces fiches
         [--valide id,id]      celles-ci partent VALIDÉES (version 1), les autres en brouillon
         [--par "…"]           qui signe les versions validées
+        [--decisions f.json]  { identifiant: instant ISO } : quand chacune a été validée (sinon, l'instant du réglage)
         [--prestations]       crée aussi les deux prestations offertes et les masque du site
         --quoi "…"            la phrase qui dit, en tête du fichier, ce que ce réglage fait
 
@@ -51,13 +52,19 @@ for (const id of [...seulement, ...aValider]) {
    le retrouve à la lecture) et sans ses références, qui restent ici, dans les
    familles, et sur la page de validation. Un BROUILLON garde tout. */
 const RUBRIQUES = ['objectif', 'public', 'produits', 'arrivee', 'etapes', 'conseils', 'suivi'];
+/* `--decisions <fichier.json>` : { identifiant: instant ISO } — quand chaque fiche a été validée sur la page. */
+const instants = arg('--decisions') ? JSON.parse(readFileSync(arg('--decisions'), 'utf8')) : {};
+for (const [id, le] of Object.entries(instants)) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(String(le))) { console.error(`Instant illisible pour ${id} : ${le}`); process.exit(2); }
+}
 const sansReferences = (contenu) => Object.fromEntries(RUBRIQUES.map((r) => [r, (contenu[r] ?? []).map(({ ref: _ref, ...ligne }) => ligne)]));
 const document = {};
 for (const f of retenues) {
   const propre = Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_')));
   if (aValider.includes(f.serviceId)) {
     const { brouillon, ...identite } = propre;
-    document[f.serviceId] = { ...identite, validee: { numero: 1, le: maintenant, par: SIGNATURE, contenu: sansReferences(brouillon) } };
+    /* L'instant de la validation est celui où elle a été donnée (`--decisions`), pas celui du réglage. */
+    document[f.serviceId] = { ...identite, validee: { numero: 1, le: instants[f.serviceId] ?? maintenant, par: SIGNATURE, contenu: sansReferences(brouillon) } };
   } else {
     document[f.serviceId] = { ...propre, brouillonLe: maintenant, brouillonPar: MARQUE_DE_LA_RECHERCHE };
   }
@@ -134,6 +141,12 @@ update public.documents d
 }
 
 morceaux.push(`-- ── ③ Les fiches ──────────────────────────────────────────────────────
+-- Si le document n'existait pas encore, on le pose vide : la fusion qui suit
+-- le remplit. Les fiches ne sont ainsi écrites qu'une fois dans ce fichier.
+insert into public.documents (key, data)
+select 'mnd_fiches_de_procedure', '{}'::jsonb
+ where not exists (select 1 from public.documents where key = 'mnd_fiches_de_procedure');
+
 with neuves as (select ${json(document)} as j)
 update public.documents d
    set data = (
@@ -156,12 +169,6 @@ update public.documents d
        updated_at = now()
  where d.key = 'mnd_fiches_de_procedure'
    and jsonb_typeof(d.data) = 'object';
-
--- Le document n'existait pas encore : on le pose.
-with neuves as (select ${json(document)} as j)
-insert into public.documents (key, data)
-select 'mnd_fiches_de_procedure', neuves.j from neuves
- where not exists (select 1 from public.documents where key = 'mnd_fiches_de_procedure');
 
 
 -- ── Contrôle ──────────────────────────────────────────────────────────
