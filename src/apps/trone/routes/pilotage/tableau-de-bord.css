@@ -176,3 +176,9 @@ button.tdb-puce:focus-visible { outline: 2px solid var(--color-copper); outline-
   .tdb-carte__t { padding: 12px 12px; flex-wrap: wrap; }
   .tdb-ligne { padding: 10px 12px; }
 }
+
+/* « Montrer les essais » (26 novembre 2026) : la même case qu'au Calendrier ;
+   une ligne d'essai se lit à part, plus pâle, et ne porte pas de montant. */
+.tdb-essais { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-soft); cursor: pointer; }
+.tdb-essais input { accent-color: var(--color-copper); }
+.tdb-table tr.est-essai td { color: var(--ink-soft); }

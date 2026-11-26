@@ -126,8 +126,12 @@ const controles = [
   {
     dit: 'les lignes sont celles du jour regarde, sans les annulees, dans l ordre des heures',
     ok: (s) => /const jourRows = useMemo\(\s*\(\) => \(jourVu === today \? todayRows : appts\s*\.filter\(\(a\) => a\.date === jourVu && a\.status !== 'annulé'\)\s*\.sort\(\(a, b\) => timeToMin\(a\.time\) - timeToMin\(b\.time\)\)\),/.test(s.bord)
-      && /\{jourRows\.map\(\(a\) => \{/.test(carte(s.bord)) && !/todayRows/.test(carte(s.bord)),
-    casse: (s) => ({ ...s, bord: remplace(s.bord, '{jourRows.map((a) => {', '{todayRows.map((a) => {') }),
+      /* Depuis le 26 novembre 2026, la carte dessine `lignesDuTableau` : ces
+         lignes-là, et les essais du même jour quand « Montrer les essais » est
+         cochée (banc verifie-essai). */
+      && /\{lignesDuTableau\.map\(\(a\) => \{/.test(carte(s.bord)) && !/todayRows/.test(carte(s.bord))
+      && /\? \[\.\.\.jourRows, \.\.\.essaisVivants\.filter\(\(a\) => a\.date === jourVu\)\]/.test(s.bord) && /: jourRows\), \[montrerLesEssais, jourRows, essaisVivants, jourVu\]\);/.test(s.bord),
+    casse: (s) => ({ ...s, bord: remplace(s.bord, '? [...jourRows, ...essaisVivants', '? [...todayRows, ...essaisVivants') }),
   },
   {
     dit: 'le pied de la carte compte ce jour-la : l attendu, l encaisse, les fauteuils',
@@ -196,7 +200,7 @@ const controles = [
   },
   {
     dit: 'un jour passe sans rendez-vous ne se dit pas « Carnet libre »',
-    ok: (s) => carte(s.bord).includes("{jourVu < today ? 'Aucun rendez-vous ce jour-là' : 'Carnet libre'}") && /\{jourRows\.length === 0 && \(/.test(carte(s.bord)),
+    ok: (s) => carte(s.bord).includes("{jourVu < today ? 'Aucun rendez-vous ce jour-là' : 'Carnet libre'}") && /\{lignesDuTableau\.length === 0 && \(/.test(carte(s.bord)),
     casse: (s) => ({ ...s, bord: remplace(s.bord, "{jourVu < today ? 'Aucun rendez-vous ce jour-là' : 'Carnet libre'}", 'Carnet libre') }),
   },
   {

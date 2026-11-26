@@ -1,4 +1,6 @@
-import { usePiecesDeLaMaison } from '../../../../shared/essai';
+import { useFichesParId, useMontrerLesEssais, usePiecesDeLaMaison } from '../../../../shared/essai';
+import { MONTRER_LES_ESSAIS, estUnRdvDEssai } from '../../../../shared/essai-pur';
+import { BadgeEssai } from '../clients/BadgeEssai';
 import { attendEncore } from '../../../../shared/salle-des-envois';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -23,7 +25,7 @@ import { chiffreAttenduDuJour } from '../clients/chiffre-du-jour-pur';
 import { GroupeDeReplis, Repli } from './Replis';
 import {
   RdvModal, ReminderBell, StatusPill, tarifsDuRituel, apptLabel, apptNetXof, apptDueXof, apptDurationMin, addDaysISO, frShort, frShortAn, fromISO,
-  predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchClients, useServicesById,
+  predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById,
   DrillModal, revenuDuMois, useClefDuTarif, type Drill, type DrillRow,
 } from '../clients/_shared';
 import { relancesAReprendre } from '../../../../shared/afaire';
@@ -298,12 +300,35 @@ function TableauDeLaDirection() {
       .sort((a, b) => timeToMin(a.time) - timeToMin(b.time))),
     [appts, jourVu, today, todayRows],
   );
-  /* Les sept pastilles : la semaine du jour regardé, et ses rendez-vous. */
+  /* « MONTRER LES ESSAIS » AU TABLEAU DE BORD — 26 novembre 2026 (« oui
+     ajoute la case dans le tableau de bord », Yéman ; la même case qu'au
+     Calendrier, le même réglage de ce poste). Cochée, les rendez-vous des
+     fiches d'essai du jour regardé s'ajoutent aux lignes, marqués « Essai »,
+     et les pastilles de la semaine les comptent. JAMAIS DANS LES CHIFFRES :
+     l'attendu, l'encaissé, les fauteuils et le bandeau lisent `jourRows`,
+     qui reste sans les essais. */
+  const tousLesRdv = useBranchAppointmentsAvecEssais();
+  const fichesParIdDuTableau = useFichesParId();
+  const [montrerLesEssais, setMontrerLesEssais] = useMontrerLesEssais();
+  const essaisVivants = useMemo(
+    () => tousLesRdv.filter((a) => a.status !== 'annulé' && estUnRdvDEssai(a, fichesParIdDuTableau)),
+    [tousLesRdv, fichesParIdDuTableau],
+  );
+  const essaisDeLaSemaine = useMemo(() => {
+    const jours = new Set(semaineDe(jourVu));
+    return essaisVivants.filter((a) => jours.has(a.date)).length;
+  }, [essaisVivants, jourVu]);
+  const lignesDuTableau = useMemo(() => (montrerLesEssais
+    ? [...jourRows, ...essaisVivants.filter((a) => a.date === jourVu)].sort((a, b) => timeToMin(a.time) - timeToMin(b.time))
+    : jourRows), [montrerLesEssais, jourRows, essaisVivants, jourVu]);
+  const estUnEssaiDuTableau = (a: Appointment) => montrerLesEssais && estUnRdvDEssai(a, fichesParIdDuTableau);
+  /* Les sept pastilles : la semaine du jour regardé, et ses rendez-vous (les essais, montrés). */
   const semaineVue = useMemo(() => {
     const parJour = new Map<string, number>();
     for (const a of appts) if (a.status !== 'annulé') parJour.set(a.date, (parJour.get(a.date) ?? 0) + 1);
+    if (montrerLesEssais) for (const a of essaisVivants) parJour.set(a.date, (parJour.get(a.date) ?? 0) + 1);
     return semaineDe(jourVu).map((iso) => ({ iso, n: parJour.get(iso) ?? 0 }));
-  }, [appts, jourVu]);
+  }, [appts, jourVu, montrerLesEssais, essaisVivants]);
   /* L'argent reçu ce jour-là : le registre, comme la fenêtre qu'il ouvre. */
   const encaisseDuJourVu = useMemo(
     () => revenuDuJour(registre, jourVu).reduce((s, r) => s + r.amountXof, 0),
@@ -921,6 +946,12 @@ function TableauDeLaDirection() {
               {jourVu !== today && (
                 <button type="button" className="tdb-lien" onClick={() => setJourChoisi(null)}>Revenir à aujourd’hui</button>
               )}
+              {(essaisDeLaSemaine > 0 || montrerLesEssais) && (
+                <label className="tdb-essais" title="Les rendez-vous des fiches d’essai ne comptent nulle part : ni l’attendu, ni l’encaissé, ni les fauteuils.">
+                  <input type="checkbox" checked={montrerLesEssais} onChange={(e) => setMontrerLesEssais(e.target.checked)} />
+                  {MONTRER_LES_ESSAIS}
+                </label>
+              )}
               <button type="button" className="tdb-lien" onClick={() => navigate('/carnet')}>Le Carnet ›</button>
             </span>
           </div>
@@ -957,20 +988,21 @@ function TableauDeLaDirection() {
                 <tr><th>Heure</th><th>Cliente</th><th>Rituel</th><th>État</th><th className="n">Montant</th><th><span className="tdb-cache">Gestes</span></th></tr>
               </thead>
               <tbody>
-                {jourRows.length === 0 && (
+                {lignesDuTableau.length === 0 && (
                   <tr><td className="tdb-vide" colSpan={6}>{jourVu < today ? 'Aucun rendez-vous ce jour-là' : 'Carnet libre'}</td></tr>
                 )}
-                {jourRows.map((a) => {
+                {lignesDuTableau.map((a) => {
+                  const essai = estUnEssaiDuTableau(a);
                   const u = chiffreAttenduDuJour([{ date: a.date, status: a.status, rituelXof: apptNetXof(a, byId), resteRituelXof: apptDueXof(a, byId), gamme: a.gamme }], a.date);
                   /* Le geste suit le jour de la ligne : rien à « honorer » sur un rendez-vous à venir. */
                   const geste = gesteDeLaLigne(a.status, a.date, today);
                   return (
-                    <tr key={a.id} onClick={() => setEditAppt(a)} title="Ouvrir ce rendez-vous">
+                    <tr key={a.id} className={essai ? 'est-essai' : undefined} onClick={() => setEditAppt(a)} title={essai ? 'Un rendez-vous d’essai : il ne compte nulle part' : 'Ouvrir ce rendez-vous'}>
                       <td className="tdb__num">{a.time}</td>
-                      <td className="tdb-txt">{clientOf(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage'}</td>
+                      <td className="tdb-txt">{clientOf(a.clientId)?.name ?? fichesParIdDuTableau.get(a.clientId)?.name ?? a.clientName ?? 'Cliente de passage'}{essai && <BadgeEssai />}</td>
                       <td className="tdb-txt">{rituelDit(apptLabel(a, byId))}</td>
                       <td><StatusPill status={a.status} rdv={a} /></td>
-                      <td className="n">{u.attenduXof > 0 ? fmt(u.attenduXof) : '·'}</td>
+                      <td className="n">{!essai && u.attenduXof > 0 ? fmt(u.attenduXof) : '·'}</td>
                       <td>
                         {/* UN GESTE PAR LIGNE, LE SUIVANT (5 novembre 2026) : confirmer,
                             terminer, puis encaisser ; jamais l'état et l'argent côte à

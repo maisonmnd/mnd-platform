@@ -134,6 +134,21 @@ dit('le calendrier cache les essais sauf demande, juge les chevauchements sur TO
   calendrier.includes('{MONTRER_LES_ESSAIS}'),
   (calendrier.match(/\{estEssai\(a\) && <BadgeEssai \/>\}/g) ?? []).length === 3,
   calendrier.includes("{estEssai(a) ? ' · Essai' : ''}")]);
+/* « MONTRER LES ESSAIS » AU TABLEAU DE BORD (26 novembre 2026) : la même case
+   et le même réglage qu'au Calendrier ; les essais s'ajoutent aux LIGNES,
+   marqués, sans montant ; les chiffres (attendu, encaissé, fauteuils,
+   bandeau) lisent toujours `jourRows`, sans eux. */
+const tableau = lit(T + 'routes/pilotage/Dashboard.tsx');
+dit('le tableau de bord montre les essais sur demande, marqués, sans montant', [true, true, true, true, true], [
+  tableau.includes('const [montrerLesEssais, setMontrerLesEssais] = useMontrerLesEssais();') && tableau.includes('{MONTRER_LES_ESSAIS}'),
+  tableau.includes('const lignesDuTableau = useMemo(() => (montrerLesEssais'),
+  tableau.includes('{lignesDuTableau.map((a) => {'),
+  tableau.includes('{essai && <BadgeEssai />}'),
+  tableau.includes("{!essai && u.attenduXof > 0 ? fmt(u.attenduXof) : '·'}")]);
+dit('le tableau de bord ne compte jamais les essais : les chiffres lisent jourRows', [true, true, false], [
+  tableau.includes('const jourDuChiffre = chiffreAttenduDuJour(jourRows.map('),
+  tableau.includes('const plages = jourRows.map('),
+  /chiffreAttenduDuJour\(lignesDuTableau|lignesDuTableau\.length, 'rendez-vous'/.test(tableau)]);
 const fiche = readFileSync(T + 'routes/clients/Customers.tsx', 'utf8').replace(/\s+/g, ' ');
 dit('la case « Fiche d essai » est de la direction seule, et le badge suit le nom', [true, true, true], [
   fiche.includes('{estDirection && ( <Field label="Fiche d’essai">'),
