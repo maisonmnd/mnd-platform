@@ -21,8 +21,8 @@
      passe JAMAIS par lui : les données ont leur propre file d'attente.
 
    Uniquement la réception des notifications et le clic, pour le reste. */
-const BUILD = "20261126011537";
-const A_GARDER = ["./","assets/asset-Dmds1xKb.js","assets/cormorant-italique-latin-C-nL33vl.woff2","assets/cormorant-italique-latin-ext-PWzi_-0y.woff2","assets/cormorant-latin-CUoBjw-S.woff2","assets/cormorant-latin-ext-ltf1AbuM.woff2","assets/devise-fon-DX3P0bG4.woff2","assets/dist-9vv0te18.js","assets/fon-UXAaD3ww.js","assets/jost-latin-ext-BDUtSsKd.woff2","assets/jost-latin-ObQm3Zd1.woff2","assets/monograms/mono-argile.png","assets/monograms/mono-copper.png","assets/monograms/mono-indigo-profond.png","assets/monograms/mono-indigo.png","assets/monograms/mono-ivoire.png","assets/monograms/mono-obsidian.png","assets/monograms/mono-or.png","assets/monograms/mono-sable.png","assets/portail-BCsOIbXw.js","assets/portail-BNprFgxy.css","assets/qr-BtAlOvRU.js","assets/regler-BB4akO99.css","assets/regler-DQJIZpIK.js","assets/tpe-DduOdeiz.js","assets/tpe-Di7fT0hv.css"];
+const BUILD = "20261126012958";
+const A_GARDER = ["./","assets/asset-Dr4tkwJs.js","assets/cormorant-italique-latin-C-nL33vl.woff2","assets/cormorant-italique-latin-ext-PWzi_-0y.woff2","assets/cormorant-latin-CUoBjw-S.woff2","assets/cormorant-latin-ext-ltf1AbuM.woff2","assets/devise-fon-DX3P0bG4.woff2","assets/dist-9vv0te18.js","assets/fon-DxPLHlcQ.js","assets/jost-latin-ext-BDUtSsKd.woff2","assets/jost-latin-ObQm3Zd1.woff2","assets/monograms/mono-argile.png","assets/monograms/mono-copper.png","assets/monograms/mono-indigo-profond.png","assets/monograms/mono-indigo.png","assets/monograms/mono-ivoire.png","assets/monograms/mono-obsidian.png","assets/monograms/mono-or.png","assets/monograms/mono-sable.png","assets/portail-BNprFgxy.css","assets/portail-BS4WbG7E.js","assets/qr-Dt-w-s8Y.js","assets/regler-BAzZYXvI.js","assets/regler-BB4akO99.css","assets/tpe-BC8Le30m.js","assets/tpe-Di7fT0hv.css"];
 const ACTIF = !BUILD.startsWith('__');
 const CACHE_APP = `mnd-app-${BUILD}`;
 const CACHE_IMAGES = 'mnd-images';
