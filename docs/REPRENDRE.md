@@ -59,7 +59,7 @@ Constat lu en base le 26 novembre : 317 fiches vivantes, 308 sans réponse ; san
 
 **Assemblage du 26 novembre** (`wt-integration`, sur e0f50a84) : B2, B6 lot 1 et B3 réunis ; deux conflits d'ajout réglés (registre R8 des douze lunes, `couronne/i18n/en.ts`). Bancs sur l'ensemble : typecheck 0 ; verts : les-dix-du-lundi, l-accord-d-un-bouton 65, l-heure-de-cotonou (5 fuseaux), remplir-la-semaine, la-caisse-du-jour, regler-la-seance 84, terminer-et-regler 283, le-prochain-rituel, la-barre-reunie, repasser-en-suggestion, calendrier, le-sceau 119, le-tpe-de-poche ; rouges d'avant inchangés : les-douze-lunes (R8 : ⟨en-clair⟩ et ⟨kkiapay-solde⟩ non inscrits ; R12), couronne-langues (« À reprogrammer » de `RendezVousTab.tsx` sans anglais).
 
-## « REPASSER EN SUGGESTION », SANS MESSAGE — 26 novembre 2026 (Trône seul ; aucun SQL, aucune fonction, aucun secret)
+## « REPASSER EN SUGGESTION », SANS MESSAGE — 26 novembre 2026, EN LIGNE (Trône build 20261126223545 @ e0f50a846, 574/574 ; il embarque aussi A7 et la part Trône de B1, d'accord avec mnd-platform-40) (Trône seul ; aucun SQL, aucune fonction, aucun secret)
 
 « Comment passer un RDV du mode confirmer à suggérer ? », puis « oui, ajoute Repasser en suggestion, sans message » (Yéman). Jusqu'ici, le choix « Suggéré par la Maison » / « Elle l'a choisi avec nous » ne vivait que dans la carte « Nouveau rendez-vous », tant qu'elle était ouverte ; le seul geste d'après allait dans l'autre sens (« Elle a dit oui »).
 
