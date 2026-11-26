@@ -39,6 +39,8 @@ import { annulationParElle } from '../../shared/terminer-et-regler-pur';
 import { ReglerDAvance } from './ReglerAvantApres';
 import { t, prix } from './i18n';
 import { nomEtEnClair } from '../../shared/en-clair-pur';
+import { momentDuSalon, moisDuSalon } from '../../shared/calendrier';
+import HeuresDeCotonou from './HeuresDeCotonou';
 
 /* MES RENDEZ-VOUS — voir, déplacer, annuler.
    Le déplacement reprend le calendrier de la réservation (créneaux libres réels) ;
@@ -141,8 +143,9 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
     [appts, clientId, tetes]
   );
 
-  const now = new Date();
-  const nowTime = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  /* « À venir » se juge à Cotonou, pas sur le téléphone (26 novembre 2026). */
+  const salon = momentDuSalon();
+  const nowTime = `${pad2(Math.floor(salon.minutes / 60))}:${pad2(salon.minutes % 60)}`;
   const today = todayIso();
   const isUpcoming = (a: Appointment) =>
     (a.status === 'confirmé' || a.status === 'en attente') &&
@@ -242,11 +245,8 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
      trois se heurte au mur sur le chemin le plus agaçant des deux, celui où
      elle a déjà un rendez-vous et cherche à s'arranger. */
   const months = useMemo(() => {
-    const d0 = new Date();
-    return [0, 1, 2, 3].map((k) => {
-      const d = new Date(d0.getFullYear(), d0.getMonth() + k, 1);
-      return { y: d.getFullYear(), m: d.getMonth(), label: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` };
-    });
+    /* À partir du mois du salon (26 novembre 2026). */
+    return moisDuSalon(4).map(({ y, m }) => ({ y, m, label: `${MONTHS[m]} ${y}` }));
   }, []);
   /* Borné : un index hors liste rendrait `month` indéfini, et l'écran blanc. */
   const month = months[Math.min(Math.max(0, monthIdx), months.length - 1)];
@@ -607,6 +607,7 @@ export default function MesRendezVous({ onClose, onBook, toast, ouvrir, geste, o
                     <div className="mc-emptyline">{t('Plus de créneau ce jour, choisissez un autre jour.')}</div>
                   )}
                 </div>
+                {dayTimes.length > 0 && <HeuresDeCotonou />}
               </div>
             )}
             <div className="mc-footnote" style={{ textAlign: 'left', marginTop: 16 }}>

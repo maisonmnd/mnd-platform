@@ -18,6 +18,7 @@ import { EN_COMPOSITION } from './en-composition';
 import { EN_MOMENT } from './en-moment';
 import { EN_VISIO } from './en-visio';
 import { EN_DEVIS } from './en-devis';
+import { EN_RETOUR } from './en-retour';
 
 export const EN: Record<string, string> = {
   ...EN_COMMUN,
@@ -36,4 +37,5 @@ export const EN: Record<string, string> = {
   ...EN_MOMENT,
   ...EN_VISIO,
   ...EN_DEVIS,
+  ...EN_RETOUR,
 };

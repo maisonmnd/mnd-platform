@@ -30,6 +30,7 @@ import {
 } from './places-pure';
 import { boutiqueOuverte } from '../../shared/boutique-pur';
 import { prenomDevine } from '../../shared/civilite';
+import { momentDuSalon } from '../../shared/calendrier';
 
 /* Ma Couronne — bibliothèque locale : cliente, visibilité, dates, créneaux, offres. */
 
@@ -541,7 +542,12 @@ export const MONTHS = selonLaLangue([
 export const MONTHS_SHORT = selonLaLangue(MONTHS_SHORT_FR, ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
 
 export const isoOf = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-export const todayIso = () => isoOf(new Date());
+/* AUJOURD'HUI, C'EST AU SALON — 26 novembre 2026 (« La diaspora, avant les
+   fêtes »). Lu sur le téléphone, « aujourd'hui » était la veille à Toronto
+   et le lendemain à Shanghai : une cliente de la diaspora voyait des places
+   déjà passées, ou en perdait. Le jour de Ma Couronne est celui de Cotonou
+   (`momentDuSalon`, shared/calendrier). */
+export const todayIso = () => momentDuSalon().jour;
 export const dateOfIso = (iso: string) => new Date(`${iso}T00:00:00`);
 
 /** « Sam. 5 juil » (« Sat 5 Jul » en anglais) */
@@ -625,7 +631,11 @@ export function freeSlots(
   if (opening.closed) return [];
 
   const regl = settingsStore.get();
-  const now = new Date();
+  /* Le jour et la minute du salon, jamais ceux du téléphone (26 novembre 2026).
+     Un jour déjà passé à Cotonou n'a plus aucune place, quel que soit le jour
+     que croit le téléphone. */
+  const salon = momentDuSalon();
+  if (dateIso < salon.jour) return [];
 
   const occupes = occupesDuJour
     ? occupesDuJour
@@ -654,7 +664,7 @@ export function freeSlots(
        qu'elle n'a pas dit garde une place. Le maître reste jugé seul : un
        SÍNSIN cherche Team, et Team déjà au fauteuil ne se double pas. */
     capSimultane: placesEnLigneDe(branchId, dateIso),
-    maintenantMin: dateIso === isoOf(now) ? now.getHours() * 60 + now.getMinutes() : null,
+    maintenantMin: dateIso === salon.jour ? salon.minutes : null,
     ...(lourde ? { lourde: true } : {}),
   });
 }
@@ -665,13 +675,13 @@ export function freeSlots(
     demi-heure (« 10:30 », posée au Trône) a jamais pu être proposée ici, pour
     ne plus la dire « prise » à tort (voir `heureHabituelle`). */
 export function grilleDuJour(dateIso: string, durationMin: number): string[] {
-  const now = new Date();
+  const salon = momentDuSalon();
   return creneauxLibres({
     opening: openingForIso(dateIso),
     durationMin,
     occupes: [],
     master: '',
-    maintenantMin: dateIso === isoOf(now) ? now.getHours() * 60 + now.getMinutes() : null,
+    maintenantMin: dateIso === salon.jour ? salon.minutes : null,
   });
 }
 

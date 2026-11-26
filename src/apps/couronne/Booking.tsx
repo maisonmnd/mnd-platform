@@ -61,6 +61,8 @@ import { heureHabituelle, issueDeLaPlace, naitConfirme, relisLesMurs, verdictDeL
 import { supabase } from '../../shared/supabase';
 import { reserveALaMaison } from './reservation-serveur';
 import { prenomDUsage } from '../../shared/civilite';
+import { jourDuSalonPlus, momentDuSalon, moisDuSalon } from '../../shared/calendrier';
+import HeuresDeCotonou from './HeuresDeCotonou';
 
 /* LE JOUR DIT DANS SA LANGUE : « Sam. 5 juil » en français (le libellé de
    toujours), « Sat 5 Jul » en anglais. Ce qui part au Trône garde
@@ -275,8 +277,9 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   const prefIso = (() => {
     const d = prefill?.dateIso;
     if (!prefService || !d || d < todayIso()) return null;
-    const now = new Date();
-    const decalage = (Number(d.slice(0, 4)) - now.getFullYear()) * 12 + (Number(d.slice(5, 7)) - 1 - now.getMonth());
+    /* Le mois du salon, pas celui du téléphone (26 novembre 2026). */
+    const [ici] = moisDuSalon(1);
+    const decalage = (Number(d.slice(0, 4)) - ici.y) * 12 + (Number(d.slice(5, 7)) - 1 - ici.m);
     return decalage === 0 || decalage === 1 ? { iso: d, mois: decalage } : null;
   })();
 
@@ -707,13 +710,9 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
 
      Rien d'autre à toucher : la fenêtre interrogée à Supabase se déduit des
      mois affichés, et les flèches se bornent à leur nombre. */
-  const months = useMemo(() => {
-    const now = new Date();
-    return [0, 1, 2, 3].map((k) => {
-      const d = new Date(now.getFullYear(), now.getMonth() + k, 1);
-      return { y: d.getFullYear(), m: d.getMonth() };
-    });
-  }, []);
+  /* À PARTIR DU MOIS DU SALON (26 novembre 2026) : le 31 décembre au soir à
+     Cotonou, un téléphone à Shanghai est déjà en janvier. */
+  const months = useMemo(() => moisDuSalon(4), []);
 
   /* LA PAGE RETENUE PEUT DÉSIGNER UN MOIS QUI N'EXISTE PLUS — une préférence
      gardée d'une visite précédente, ou le jour où la Maison réduira la
@@ -1243,11 +1242,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   /* ── LES SIX PROCHAINES PLACES pour les gestes choisis (écran express) ── */
   const placesExpress = useMemo(() => {
     if (vue !== EXPRESS || !selected.length || totalSessions > 1 || !occupesCharges) return [];
-    const d0 = new Date();
+    /* Les jours comptés depuis aujourd'hui À COTONOU (26 novembre 2026). */
+    const d0 = todayIso();
     const jours: { iso: string; heures: { heure: string }[] }[] = [];
     for (let k = 0; k < JOURS_DES_PLACES; k++) {
-      const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + k);
-      const iso = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+      const iso = jourDuSalonPlus(d0, k);
       const heures = freeSlots(iso, master, totalDuration, appts, tousServices, branch.id, occupes, teteDeLaCible);
       if (heures.length) jours.push({ iso, heures: heures.map((heure) => ({ heure })) });
     }
@@ -1314,11 +1313,11 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
   };
   const [luPhrase, setLuPhrase] = useState<{ texte: string; doutes: { mot: string; ids: string[] }[] } | null>(null);
   const lisLaPhrase = (phrase: string) => {
-    const m = new Date();
+    const salon = momentDuSalon();
     /* Ses venues lèvent un doute : « retwist » chez une habituée d'un SÍNSIN™. */
     const lecture = departage(litLaPhrase(phrase, {
-      aujourdhui: todayIso(),
-      minutes: m.getHours() * 60 + m.getMinutes(),
+      aujourdhui: salon.jour,
+      minutes: salon.minutes,
       prestations: offre.map((s) => ({ id: s.id, name: s.name })),
     }), appts.filter((a) => a.status !== 'annulé' && !!cible && a.clientId === cible.id).flatMap((a) => a.serviceIds ?? []));
     if (lecture.vide) { setLuPhrase({ texte: t('Nous n’avons pas compris. Essayez par exemple : « retwist mercredi à 10 h ».'), doutes: [] }); return; }
@@ -1695,6 +1694,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                     <button type="button" className="mc-place mc-place--autre" onClick={unAutreJour}>{t('Un autre jour')}</button>
                   </div>
                 )}
+                {occupesCharges && totalSessions <= 1 && <HeuresDeCotonou />}
                 {/* LE DÉCOMPTE DU JOUR CHOISI : « Places limitées · Remise : il
                     reste 2 places ». Il faut vite réserver, et elle le lit. */}
                 {placeExpress && chiffre.place && placesDit(chiffre.place, placeExpress.iso) && (
@@ -2205,6 +2205,7 @@ export default function Booking({ prefill, onClose, toast, onVoirRdv }: Props) {
                   })}
                   {dayTimes.length === 0 && <div className="mc-emptyline">{t('Plus de créneau ce jour, choisissez un autre jour.')}</div>}
                 </div>
+                {dayTimes.length > 0 && <HeuresDeCotonou />}
               </div>
             )}
 

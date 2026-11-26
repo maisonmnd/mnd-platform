@@ -14,6 +14,7 @@ import { PayerParFedaPay } from './FedaPay';
 import { LesNouvelles } from './Nouvelles';
 import { Sceau, SceauPose } from '../../ds/sceau';
 import { QrSvg } from '../../ds/qr';
+import { horlogeAilleurs } from '../../shared/calendrier';
 
 /* ══ RÉGLER SA SÉANCE — la page de la cliente (25 octobre 2026) ══════════
    Ouverte depuis le bouton « Régler » de son message (payer.html?tg=r-…).
@@ -771,6 +772,8 @@ export default function App() {
                   <button type="button" className="rg-lien" onClick={() => { void repondreAuProchainRituel('plus-tard'); }}>Pas maintenant</button>
                 </>
               )}
+              {/* Le téléphone vit ailleurs : l'heure dite est celle de Cotonou (26 novembre 2026). */}
+              {horlogeAilleurs() && <p className="rg-doux rg-petit">Heures de Cotonou.</p>}
             </section>
           );
         }

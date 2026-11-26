@@ -209,6 +209,44 @@ export const momentDuSalon = (ms: number = Date.now()): { jour: string; minutes:
   return { jour: `${p.year}-${p.month}-${p.day}`, minutes: (Number(p.hour) % 24) * 60 + Number(p.minute) };
 };
 
+/* ── L'HEURE DE COTONOU PARTOUT OÙ L'ON RÉSERVE — 26 novembre 2026 ─────
+   « La diaspora, avant les fêtes » (audit du Trône, validé par Yéman). Ma
+   Couronne et le site lisaient l'heure du téléphone de la cliente : depuis
+   l'Amérique, ou depuis l'Europe en été, elle voyait des places déjà passées
+   à Cotonou ; depuis l'Asie, des places encore libres lui étaient cachées.
+   Chaque écran où une cliente choisit une place juge désormais « aujourd'hui »
+   et « maintenant » au salon, et dit « heures de Cotonou » quand son
+   téléphone vit ailleurs. Éprouvé par `verifie-l-heure-de-cotonou`, sous
+   cinq fuseaux. */
+
+/** Le jour d'après (ou d'avant) un jour « AAAA-MM-JJ », compté au calendrier,
+    jamais à l'heure du poste. */
+export const jourDuSalonPlus = (iso: string, n: number): string => {
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/** LES MOIS QUI S'OUVRENT DEVANT ELLE, à partir du mois du salon : `{ y, m }`
+    avec `m` de 0 à 11, comme `Date.getMonth`. Le 31 décembre à 23 h 30 à
+    Cotonou, un téléphone à Shanghai est déjà en janvier : la grille commence
+    pourtant en décembre, le mois où la Maison est encore. */
+export const moisDuSalon = (n: number, ms: number = Date.now()): { y: number; m: number }[] => {
+  const [a, mo] = momentDuSalon(ms).jour.split('-').map(Number);
+  return Array.from({ length: Math.max(0, n) }, (_, k) => {
+    const t = mo - 1 + k;
+    return { y: a + Math.floor(t / 12), m: ((t % 12) + 12) % 12 };
+  });
+};
+
+/** LE TÉLÉPHONE VIT-IL AILLEURS QU'À COTONOU, à cet instant ? Cotonou est à
+    UTC+1 toute l'année (`getTimezoneOffset` y vaut -60) : un écart, et la
+    place dit « heures de Cotonou ». Lisbonne en hiver et Paris en été n'ont
+    pas l'heure de Cotonou : ils le disent aussi. */
+export const horlogeAilleurs = (ms: number = Date.now()): boolean => {
+  try { return new Date(ms).getTimezoneOffset() !== -60; } catch { return false; }
+};
+
 /* ── LES BORNES ──────────────────────────────────────────────────────
    Le calendrier du navigateur respectait `min` et `max` : une naissance ne
    pouvait pas tomber demain, une reprogrammation pas hier. Le champ de la

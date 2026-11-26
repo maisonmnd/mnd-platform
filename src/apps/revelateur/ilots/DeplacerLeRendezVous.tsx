@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { client } from '../maison';
 import { jourDit } from '../agenda';
+import { horlogeAilleurs } from '../../../shared/calendrier';
 import {
   LETTRES_DE_LA_SEMAINE, dateDite, etatDuJour, flechesDuMois, grilleDuMois, libelleDuJour, moisAMontrer, moisApres, moisDeLHorizon, sensDuGlisse, titreDuMois,
 } from '../calendrier-du-site-pur';
@@ -195,6 +196,8 @@ export default function DeplacerLeRendezVous({ rdv, surDeplace, surGarder, wa }:
               </button>
             ))}
           </div>
+          {/* Le téléphone vit ailleurs : ces heures sont celles de Cotonou (26 novembre 2026). */}
+          {horlogeAilleurs() && <p className="legende">Heures de Cotonou.</p>}
         </div>
       )}
       {dit && <p className="legende" role="alert">{dit}</p>}

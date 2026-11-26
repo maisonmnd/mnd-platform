@@ -8,6 +8,7 @@ import {
   type AgendaDeLaMaison, type PrestationPublique,
 } from '../agenda';
 import { minutesDeCotonou } from '../../../shared/place-du-serveur';
+import { momentDuSalon } from '../../../shared/calendrier';
 import {
   dateDite, etatDuJour, flechesDuMois, grilleDuMois, LETTRES_DE_LA_SEMAINE, libelleDuJour, moisAMontrer, moisApres,
   sensDuGlisse, titreDuMois,
@@ -878,11 +879,12 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
   const [voulu, setVoulu] = useState<{ jour: string | null; heure: string | null } | null>(null);
   const [lu, setLuDeLaPhrase] = useState<{ texte: string; doutes: { mot: string; ids: string[] }[] } | null>(null);
   const lisLaPhrase = (phrase: string) => {
-    const m = new Date();
+    /* « Demain à 10 h » se lit à Cotonou, pas sur le téléphone (26 novembre 2026). */
+    const aCotonou = momentDuSalon();
     /* Sa dernière venue, gardée sur ce téléphone, lève un doute (« retwist »). */
     const lecture = departage(litLaPhrase(phrase, {
-      aujourdhui: isoDuJour(m),
-      minutes: m.getHours() * 60 + m.getMinutes(),
+      aujourdhui: aCotonou.jour,
+      minutes: aCotonou.minutes,
       prestations: prestations.map((p) => ({ id: p.id, name: p.name })),
     }), moi?.serviceIds ?? []);
     if (lecture.vide) { setLuDeLaPhrase({ texte: 'Nous n’avons pas compris. Essayez par exemple : « retwist mercredi à 10 h ».', doutes: [] }); return; }
@@ -1926,6 +1928,8 @@ function Calendrier({ besoin: besoinInitial, initiales, surLaPorte }: Props) {
                     );
                   })}
                 </div>
+                {/* Le téléphone vit ailleurs : ces heures sont celles de Cotonou (26 novembre 2026). */}
+                {aLEtranger() && <p className="legende" style={{ marginTop: 8 }}>Heures de Cotonou.</p>}
                 {/* LE MOIS EN GRILLE — 6 novembre 2026 (maquette « Le calendrier
                     du site », validée) : ce mois et les trois suivants, TOUT DE
                     SUITE sous les six places, sans bouton à ouvrir. Libre en

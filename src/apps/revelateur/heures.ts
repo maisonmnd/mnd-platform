@@ -1,4 +1,5 @@
 import { hourToMin, ouvertureDuJour, type ExceptionDHoraire, type HeureDeLaSemaine } from '../../shared/agenda-pur';
+import { jourDeSemaineLundi, jourDuSalonPlus, momentDuSalon } from '../../shared/calendrier';
 
 /* LES HEURES DE LA MAISON, DITES AU TROTTOIR — 21 septembre 2026.
 
@@ -34,14 +35,14 @@ const NOMS: Record<string, string> = {
 const deMinutes = (m: number): string =>
   `${String(Math.floor(m / 60)).padStart(2, '0')}h${String(m % 60).padStart(2, '0')}`;
 
-const iso = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-const plusDeJours = (d: Date, n: number): Date => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-};
+/* LE JOUR ET L'HEURE DE COTONOU — 26 novembre 2026 (« La diaspora, avant
+   les fêtes »). « Ouvert jusqu'à 19h00 » se lisait sur l'horloge du
+   téléphone : à Montréal, la page disait la Maison fermée en plein
+   après-midi de Cotonou. L'instant reçu se lit au salon (`momentDuSalon`) ;
+   les jours se comptent au calendrier, jamais à l'heure du poste. */
+const iso = (d: Date): string => momentDuSalon(d.getTime()).jour;
+const minuteDuSalon = (d: Date): number => momentDuSalon(d.getTime()).minutes;
+const clefDuJour = (j: string): (typeof ORDRE)[number] => ORDRE[jourDeSemaineLundi(j)];
 
 /* UNE HEURE VIDE N'EST PAS NEUF HEURES — 21 septembre 2026, au soir.
 
@@ -70,7 +71,7 @@ export function semaineDite(
   maintenant: Date,
 ): JourDit[] {
   if (!semaine.length) return [];
-  const clefAuj = ORDRE[(maintenant.getDay() + 6) % 7];
+  const clefAuj = clefDuJour(iso(maintenant));
   return ORDRE.map((clef) => {
     const aujourdhui = clef === clefAuj;
     if (aujourdhui) {
@@ -125,8 +126,9 @@ export function etatDeLaMaison(
   maintenant: Date,
 ): EtatDeLaMaison | null {
   if (!semaine.length) return null;
-  const f = ouvertureDuJour(iso(maintenant), semaine, exceptions);
-  const m = maintenant.getHours() * 60 + maintenant.getMinutes();
+  const aujourdhui = iso(maintenant);
+  const f = ouvertureDuJour(aujourdhui, semaine, exceptions);
+  const m = minuteDuSalon(maintenant);
   if (ouverte(f) && m >= f.openMin && m < f.closeMin) {
     return { ouvert: true, texte: `Ouvert jusqu’à ${deMinutes(f.closeMin)}` };
   }
@@ -136,10 +138,10 @@ export function etatDeLaMaison(
     return { ouvert: false, texte: `Fermé, ouvre à ${deMinutes(f.openMin)}` };
   }
   for (let p = 1; p <= 7; p++) {
-    const d = plusDeJours(maintenant, p);
-    const g = ouvertureDuJour(iso(d), semaine, exceptions);
+    const j = jourDuSalonPlus(aujourdhui, p);
+    const g = ouvertureDuJour(j, semaine, exceptions);
     if (!ouverte(g)) continue;
-    const quand = p === 1 ? 'demain' : NOMS[ORDRE[(d.getDay() + 6) % 7]];
+    const quand = p === 1 ? 'demain' : NOMS[clefDuJour(j)];
     return { ouvert: false, texte: `Fermé, ouvre ${quand} à ${deMinutes(g.openMin)}` };
   }
   /* Sept jours fermés d'affilée : on le dit sans promettre de date. */

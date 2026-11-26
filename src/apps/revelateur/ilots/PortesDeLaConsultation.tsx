@@ -9,6 +9,7 @@ import type { CarteDesPlaces, CreneauOccupe } from '../../../shared/agenda-pur';
 import type { RendezVous } from '../../../shared/envies-pur';
 import { gestesAuCalibre } from '../../../shared/rendez-vous-en-attente-pur';
 import { TELEPHONE_MONDE, TELEPHONE_PAYS } from '../../../shared/geo';
+import { horlogeAilleurs } from '../../../shared/calendrier';
 import { creneauxOccupes, heuresLibres, horizonDuSite, placesEnLigne, type AgendaDeLaMaison } from '../agenda';
 import { LETTRES_DE_LA_SEMAINE, flechesDuMois, grilleDuMois, moisApres, titreDuMois } from '../calendrier-du-site-pur';
 import { PHRASE_DU_REPLI_DES_PLACES, referenceDeLaReponse } from '../reservation-du-site-pure';
@@ -519,6 +520,8 @@ export function VotreMoment({
               {duJour.map((h) => (
                 <button type="button" key={h.cle} className="ca-puce" aria-pressed={heure?.cle === h.cle} onClick={() => { setHeure(h); setErreur(null); }}>{h.dit}</button>
               ))}
+              {/* Le téléphone vit ailleurs : ces heures sont celles de Cotonou (26 novembre 2026). */}
+              {duJour.length > 0 && horlogeAilleurs() && <p className="legende" style={{ width: '100%' }}>Heures de Cotonou.</p>}
             </div>
           )}
           {!sansCoordonnees && (

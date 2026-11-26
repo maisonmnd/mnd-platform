@@ -97,10 +97,11 @@ export default function Cycle({ forfait, onClose, onFini, toast }: Props) {
      un cycle proposé contre un agenda vide tombe sur des heures occupées. La
      fenêtre couvre six mois, un cycle se posant loin devant. Voir la migration
      0079 et le commentaire de `freeSlots`. */
+  /* Depuis aujourd'hui À COTONOU (26 novembre 2026), jamais le jour du téléphone. */
   const fenetreCycle = useMemo(() => {
-    const d = new Date();
+    const d = dateOfIso(todayIso());
     const fin = new Date(d.getFullYear(), d.getMonth() + 6, 0);
-    return { du: isoOf(d), au: isoOf(fin) };
+    return { du: todayIso(), au: isoOf(fin) };
   }, []);
   const occupes = useCreneauxOccupes(branch.id, fenetreCycle.du, fenetreCycle.au);
   /* LE CATALOGUE ENTIER : la composition d'un forfait ne dépend pas de ce

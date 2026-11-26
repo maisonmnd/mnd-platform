@@ -53,6 +53,7 @@ import {
 import { ETAT_SEANCE } from './releve';
 import { etatDeLaSeance } from '../../shared/abonnee-pur';
 import { jourDeCotonou } from '../../shared/ia-faits-pur';
+import { momentDuSalon } from '../../shared/calendrier';
 import { createStore, uid, useStore } from '../../shared/store';
 import { prenomDUsage } from '../../shared/civilite';
 import {
@@ -281,8 +282,9 @@ function useUpcomingAppointments(cibleId?: string): Appointment[] {
   const monId = useClientId();
   const clientId = cibleId ?? monId;
   return useMemo(() => {
-    const now = new Date();
-    const nowTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    /* « À venir » se juge à Cotonou (26 novembre 2026). */
+    const m = momentDuSalon().minutes;
+    const nowTime = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
     const today = todayIso();
     return appts
       .filter(
