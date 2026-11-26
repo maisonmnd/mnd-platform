@@ -94,6 +94,7 @@ const FICHIERS = {
   vite: 'vite.config.ts',
   sites: 'scripts/build-sites.mjs',
   pur: 'src/shared/tpe-de-poche-pur.ts',
+  entree: 'src/apps/tpe/main.tsx',
   manifeste: 'public/manifest.tpe.webmanifest',
   page: 'tpe.html',
   service: 'public/tpe-sw.js',
@@ -293,7 +294,8 @@ const controles = [
     ok: (s) => /export const CHEMIN_DU_TERMINAL = '\/mnd-platform\/';/.test(s.pur)
       && /const dossier = import\.meta\.env\.DEV \? '\/' : CHEMIN_DU_TERMINAL;/.test(s.trone)
       && /name: 'mnd-platform',[\s\S]*?apps: 'portail,tpe,regler',/.test(s.sites)
-      && !/apps: 'trone,[^']*\btpe\b/.test(s.sites),
+      && /const ancienne = !import\.meta\.env\.DEV && window\.location\.pathname\.startsWith\('\/trone\/'\);/.test(s.entree)
+      && /window\.location\.replace\(`\$\{CHEMIN_DU_TERMINAL\}tpe\.html\$\{window\.location\.search\}`\)/.test(s.entree),
     casse: (s) => ({ ...s, sites: remplace(s.sites, "apps: 'portail,tpe,regler',", "apps: 'portail',") }),
   },
   {

@@ -81,7 +81,9 @@ const SITES = [
   {
     name: 'trone',
     base: '/trone/',
-    apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler,devis',
+    /* `tpe` reste ici pour RENVOYER l'ancienne adresse /trone/tpe.html vers le
+       portail (src/apps/tpe/main.tsx), où Trône Terminal vit désormais. */
+    apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler,devis,tpe',
     rename: { 'trone.html': 'index.html' },
     // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail) :
     // son verrou n'est pas posé ici, mais pour TOUS les sites, au lancement de
