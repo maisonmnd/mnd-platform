@@ -93,6 +93,9 @@ const FICHIERS = {
   regler: 'src/apps/regler/App.tsx',
   vite: 'vite.config.ts',
   sites: 'scripts/build-sites.mjs',
+  manifeste: 'public/manifest.tpe.webmanifest',
+  page: 'tpe.html',
+  service: 'public/tpe-sw.js',
   routes: 'src/apps/trone/routes/index.tsx',
   prenoms: 'scripts/verifie-le-prenom-d-usage.harnais.ts',
 };
@@ -249,6 +252,27 @@ const controles = [
     dit: 'tpe.html se construit avec le Trone, a cote de regler.html',
     ok: (s) => /tpe: resolve\(__dirname, 'tpe\.html'\),/.test(s.vite) && /apps: 'trone,[^']*\bregler\b[^']*\btpe\b[^']*'/.test(s.sites),
     casse: (s) => ({ ...s, sites: remplace(s.sites, ',devis,tpe', ',devis') }),
+  },
+  {
+    dit: 'Trone Terminal s installe : son manifeste (nom, tpe.html, plein ecran, icones 192 et 512) et tpe.html qui le cite',
+    ok: (s) => {
+      let m = null;
+      try { m = JSON.parse(s.manifeste); } catch { /* illisible */ }
+      return !!m && m.name === 'Trône Terminal' && m.start_url === 'tpe.html' && m.display === 'standalone'
+        && ['192x192', '512x512'].every((t) => (m.icons ?? []).some((i) => i.sizes === t))
+        && /<link rel="manifest" href="\/manifest\.tpe\.webmanifest" \/>/.test(s.page);
+    },
+    casse: (s) => ({ ...s, page: sans(s.page, '<link rel="manifest" href="/manifest.tpe.webmanifest" />') }),
+  },
+  {
+    dit: 'le service de l app a une portee etroite (…/tpe) : il ne remplace jamais celui du Trone',
+    ok: (s) => /register\(`\$\{base\}tpe-sw\.js`, \{ scope: `\$\{base\}tpe`/.test(s.telephone) && /req\.mode !== 'navigate'/.test(s.service),
+    casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'scope: `${base}tpe`', 'scope: base') }),
+  },
+  {
+    dit: 'sur iPhone, dans Safari, le code ne se consomme pas d emblee : l app d abord',
+    ok: (s) => /dAbordLApp: estUnIphone\(\) && !estAutonome\(\)/.test(s.telephone) && /!vue\.dAbordLApp && !activationLancee\.current/.test(s.telephone),
+    casse: (s) => ({ ...s, telephone: remplace(s.telephone, '!vue.dAbordLApp && !activationLancee.current', '!activationLancee.current') }),
   },
   {
     dit: 'le banc du prenom d usage tient aussi la copie de tpe-de-poche',

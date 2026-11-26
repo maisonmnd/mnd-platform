@@ -1,0 +1,17 @@
+{
+  "id": "tpe.html",
+  "name": "Trône Terminal",
+  "short_name": "Trône TPE",
+  "description": "Le TPE de poche de la Maison MND : encaisser les séances du jour.",
+  "start_url": "tpe.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F6F1E7",
+  "theme_color": "#1E2150",
+  "icons": [
+    { "src": "assets/icons/trone-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/trone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/trone-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

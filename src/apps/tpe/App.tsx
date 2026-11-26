@@ -20,8 +20,60 @@ import {
    Maison. Le code secret (quatre chiffres) se redemande après deux minutes
    sans toucher ; cinq erreurs retirent le TPE de ce téléphone. */
 
+/* ══ TRÔNE TERMINAL — l'application (26 novembre 2026) ═══════════════════
+   « Besoin d'une app sur le téléphone, Trône TPE de poche par exemple… ou
+   Trône Terminal » (Yéman). La page s'installe sur l'écran d'accueil
+   (manifest.tpe.webmanifest, tpe-sw.js) : une icône, le plein écran, pas de
+   magasin d'applications, et chaque publication la met à jour toute seule.
+   Sur Android, Chrome propose « Installer » (on garde son invitation pour un
+   bouton à nous) ; sur iPhone, c'est Safari › Partager › « Sur l'écran
+   d'accueil ». L'APP D'UN IPHONE NE VOIT PAS LE STOCKAGE DE SAFARI : sur
+   iPhone, on installe D'ABORD, puis on active dans l'app en tapant le code
+   (le QR ouvert dans Safari ne consomme pas le code d'emblée). */
+type InvitationAInstaller = Event & { prompt: () => Promise<void>; userChoice?: Promise<{ outcome: string }> };
+const estAutonome = (): boolean => {
+  try {
+    return window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  } catch {
+    return false;
+  }
+};
+const estUnIphone = (): boolean => /iPhone|iPad|iPod/i.test(navigator.userAgent);
+/** Le service de l'app, à portée étroite (`…/tpe`) : jamais celui du Trône. */
+function enregistreLeServiceDeLApp(): void {
+  try {
+    if (!('serviceWorker' in navigator)) return;
+    const base = import.meta.env.BASE_URL;
+    void navigator.serviceWorker.register(`${base}tpe-sw.js`, { scope: `${base}tpe`, updateViaCache: 'none' }).catch(() => { /* rien : l'app reste une page */ });
+  } catch { /* rien */ }
+}
+
+function Installer({ invitation, onInstalle }: { invitation: InvitationAInstaller | null; onInstalle: () => void }) {
+  if (estAutonome()) return null;
+  if (invitation) {
+    return (
+      <div className="tp-installer">
+        <button type="button" className="tp-btn tp-btn--plein" onClick={() => { void invitation.prompt().then(onInstalle).catch(onInstalle); }}>
+          Installer l’app Trône Terminal
+        </button>
+        <p className="tp-doux tp-petit">Une icône sur l’écran d’accueil : le TPE s’ouvre en plein écran, comme une application.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="tp-installer">
+      <p className="tp-doux tp-petit">
+        <b>Installer l’app Trône Terminal :</b>{' '}
+        {estUnIphone()
+          ? 'dans Safari, touchez Partager (le carré et sa flèche), puis « Sur l’écran d’accueil ».'
+          : 'dans Chrome, ouvrez le menu (les trois points), puis « Installer l’application » ou « Ajouter à l’écran d’accueil ».'}
+      </p>
+    </div>
+  );
+}
+
 type Vue =
-  | { k: 'activation'; code: string; erreur?: string; enCours?: boolean }
+  | { k: 'activation'; code: string; erreur?: string; enCours?: boolean; dAbordLApp?: boolean }
   | { k: 'secret-choisir'; premier?: string }
   | { k: 'verrou' }
   | { k: 'liste' }
@@ -75,7 +127,8 @@ export default function App() {
   const [vue, setVue] = useState<Vue>(() => {
     const code = codeDuTpePropre(new URLSearchParams(window.location.search).get('a'));
     const garde = lisLeTpeGarde();
-    if (estUnCodeDuTpe(code)) return { k: 'activation', code };
+    /* Sur iPhone, dans Safari : l'app d'abord (elle ne verrait pas ce que Safari garde). */
+    if (estUnCodeDuTpe(code)) return { k: 'activation', code, dAbordLApp: estUnIphone() && !estAutonome() };
     if (!garde) return { k: 'activation', code: '' };
     if (!garde.secret) return { k: 'secret-choisir' };
     return tpeAVerrouiller(dernierToucher(), Date.now()) ? { k: 'verrou' } : { k: 'liste' };
@@ -84,6 +137,17 @@ export default function App() {
   const [erreurs, setErreurs] = useState(0);
   const [jour, setJour] = useState<{ jour?: string; lignes: LigneDuJourAuTpe[]; lu: boolean; erreur?: string }>({ lignes: [], lu: false });
   const activationLancee = useRef(false);
+  const [invitation, setInvitation] = useState<InvitationAInstaller | null>(null);
+
+  /* ── L'app : son service, et l'invitation de Chrome à installer. ── */
+  useEffect(() => {
+    enregistreLeServiceDeLApp();
+    const garde = (e: Event) => { e.preventDefault(); setInvitation(e as InvitationAInstaller); };
+    const installee = () => setInvitation(null);
+    window.addEventListener('beforeinstallprompt', garde);
+    window.addEventListener('appinstalled', installee);
+    return () => { window.removeEventListener('beforeinstallprompt', garde); window.removeEventListener('appinstalled', installee); };
+  }, []);
 
   /* ── Le toucher garde le TPE ouvert ; deux minutes sans, il se verrouille. ── */
   useEffect(() => {
@@ -121,7 +185,7 @@ export default function App() {
     setVue({ k: 'secret-choisir' });
   }, []);
   useEffect(() => {
-    if (vue.k === 'activation' && estUnCodeDuTpe(vue.code) && !vue.enCours && !vue.erreur && !activationLancee.current) {
+    if (vue.k === 'activation' && estUnCodeDuTpe(vue.code) && !vue.enCours && !vue.erreur && !vue.dAbordLApp && !activationLancee.current) {
       activationLancee.current = true;
       void active(vue.code);
     }
@@ -194,12 +258,32 @@ export default function App() {
     </header>
   );
 
+  if (vue.k === 'activation' && vue.dAbordLApp) {
+    return (
+      <main className="tp">
+        {tete}
+        <section className="tp-bloc tp-centre">
+          <p className="tp-sur">Trône Terminal</p>
+          <h1>D’abord, l’app</h1>
+          <ol className="tp-etapes">
+            <li>Touchez <b>Partager</b> (le carré et sa flèche), en bas de Safari.</li>
+            <li>Choisissez <b>« Sur l’écran d’accueil »</b>, puis <b>Ajouter</b>.</li>
+            <li>Ouvrez l’app <b>Trône TPE</b> et tapez ce code :</li>
+          </ol>
+          <p className="tp-code">{`${vue.code.slice(0, 4)}-${vue.code.slice(4)}`}</p>
+          <p className="tp-doux tp-petit">Il vit dix minutes. Passé ce délai, demandez un nouveau QR au Trône.</p>
+          <button type="button" className="tp-lien" onClick={() => setVue({ k: 'activation', code: vue.code })}>Rester dans Safari et activer ici</button>
+        </section>
+      </main>
+    );
+  }
+
   if (vue.k === 'activation') {
     return (
       <main className="tp">
         {tete}
         <section className="tp-bloc tp-centre">
-          <p className="tp-sur">TPE de poche</p>
+          <p className="tp-sur">{estAutonome() ? 'Trône Terminal' : 'TPE de poche'}</p>
           <h1>Activer ce téléphone</h1>
           {vue.enCours ? <p className="tp-doux">Activation…</p> : (
             <>
@@ -215,6 +299,7 @@ export default function App() {
             </>
           )}
           {vue.erreur && <p className="tp-alerte" role="alert">{vue.erreur}</p>}
+          <Installer invitation={invitation} onInstalle={() => setInvitation(null)} />
         </section>
       </main>
     );
@@ -254,7 +339,7 @@ export default function App() {
 
   const enTete = (
     <div className="tp-marque">
-      <div><b>TPE de poche</b><span>{tpe?.nom}{jour.jour ? ` · ${jourDit(jour.jour)}` : ''}</span></div>
+      <div><b>Trône Terminal</b><span>{tpe?.nom}{jour.jour ? ` · ${jourDit(jour.jour)}` : ''}</span></div>
     </div>
   );
 
@@ -324,6 +409,7 @@ export default function App() {
           })}
         </ul>
         <p className="tp-doux tp-petit">Une séance s’encaisse ici dès que le maître l’a terminée au Trône. L’argent arrive sur les comptes de la Maison, jamais sur ce téléphone.</p>
+        <Installer invitation={invitation} onInstalle={() => setInvitation(null)} />
         <button type="button" className="tp-lien" onClick={() => { gardeLeTpe(null); oublieLeToucher(); setTpe(null); setVue({ k: 'activation', code: '' }); }}>
           Retirer le TPE de ce téléphone
         </button>

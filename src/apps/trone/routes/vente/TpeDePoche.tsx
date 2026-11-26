@@ -173,7 +173,7 @@ export default function TpeDePoche() {
                     <div style={{ flex: '1 1 200px', minWidth: 0, display: 'grid', gap: 4 }}>
                       <span style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>Code d’activation de {m.name}</span>
                       <span style={{ fontFamily: 'var(--font-serif)', fontSize: 30, letterSpacing: '.08em', lineHeight: 1 }}>{codeDuTpeDit(lui.code)}</span>
-                      <span style={{ fontSize: 13.5 }}>{m.name} ouvre l’appareil photo de son téléphone et scanne ce QR, ou ouvre {window.location.origin}{dossier}tpe.html et tape le code. Valable encore {Math.floor(resteS / 60)} min {String(resteS % 60).padStart(2, '0')} s, pour un seul téléphone ; un nouveau téléphone remplace l’ancien.</span>
+                      <span style={{ fontSize: 13.5 }}>{m.name} ouvre l’appareil photo de son téléphone et scanne ce QR, ou ouvre {window.location.origin}{dossier}tpe.html et tape le code. L’écran lui propose ensuite d’installer l’app <b>Trône Terminal</b> (sur iPhone : l’app d’abord, puis le code dedans). Valable encore {Math.floor(resteS / 60)} min {String(resteS % 60).padStart(2, '0')} s, pour un seul téléphone ; un nouveau téléphone remplace l’ancien.</span>
                       <button type="button" style={{ justifySelf: 'start', background: 'none', border: 0, padding: 0, textDecoration: 'underline', cursor: 'pointer', fontSize: 13 }} onClick={() => setCode(null)}>Fermer</button>
                     </div>
                   </div>

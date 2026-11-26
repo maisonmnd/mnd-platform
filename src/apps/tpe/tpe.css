@@ -125,6 +125,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--tp-cuivre);
 .tp-puce { font-family: 'Jost', system-ui, sans-serif; font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; border: 1px solid rgba(30, 33, 80, .3); border-radius: 2px; padding: 2px 6px; color: var(--tp-doux); white-space: nowrap; }
 .tp-puce--bon { border-color: var(--tp-vert); color: var(--tp-vert); background: var(--tp-vert-pale); }
 
+/* Trône Terminal : l'invitation à installer, et les étapes de l'iPhone. */
+.tp-installer { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--tp-filet); width: 100%; text-align: left; }
+.tp-installer b { font-weight: 500; color: var(--tp-indigo); }
+.tp-etapes { margin: 0; padding-left: 20px; display: grid; gap: 6px; text-align: left; font-size: 14px; line-height: 1.45; }
+.tp-etapes b { font-weight: 500; }
+.tp-code { margin: 0; font-family: 'Cormorant Garamond', Georgia, serif; font-size: 34px; letter-spacing: .08em; line-height: 1; }
+
 .tp-qui { display: grid; gap: 2px; text-align: center; }
 .tp-qui b { font-weight: 500; font-size: 17px; display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .tp-qui span { font-size: 13px; color: var(--tp-doux); }
