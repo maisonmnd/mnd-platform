@@ -79,6 +79,35 @@ try {
       [t.nomDAppareil('  Android ·   SM-A155F <x> '), t.nomDAppareil('a'.repeat(90)).length]);
     egal('l adresse d activation : a cote du Trone servi, aucun domaine ecrit', 'https://exemple.test/trone/tpe.html?a=4k7m9q2x', t.adresseDActivation('https://exemple.test', '/trone/', '4k7m9q2x'));
     egal('l adresse de la page Regler en mode TPE', '/trone/payer.html?tg=r-abc&tpe=1', t.adresseDuReglementAuTpe('/trone', 'abc'));
+
+    /* LE LOT 2 (26 novembre 2026) : les plafonds, les especes, le total du soir. */
+    egal('les plafonds de la maquette : 300 000 F par paiement, 1 000 000 F par jour', [300000, 1000000], [t.PLAFOND_PAR_PAIEMENT_XOF, t.PLAFOND_PAR_JOUR_XOF]);
+    egal('une seance compte une fois, au plus haut ; la seance du jour se met a part', [150000, 100000],
+      [t.engageDuJour([{ rdvId: 'a', montantXof: 50000 }, { rdvId: 'a', montantXof: 100000 }, { rdvId: 'b', montantXof: 50000 }]),
+        t.engageDuJour([{ rdvId: 'a', montantXof: 100000 }, { rdvId: 'b', montantXof: 50000 }], 'b')]);
+    egal('le plafond : 300 000 passe, 300 001 non ; le jour se juge sur ce qui reste', [true, 'plafond-paiement', 'plafond-jour', 50000, true],
+      [t.plafondDuTpe(300000, 0).ok, t.plafondDuTpe(300001, 0).raison, t.plafondDuTpe(60000, 950000).raison, t.plafondDuTpe(60000, 950000).resteDuJourXof, t.plafondDuTpe(50000, 950000).ok]);
+    egal('des especes declarees : la seance attend, elle ne s encaisse plus', ['especes', 'pas-terminee', 'a-encaisser'],
+      [t.etatAuTpe(true, 15000, true), t.etatAuTpe(false, null, true), t.etatAuTpe(true, 15000, false)]);
+    egal('la direction ne donne que reçue ou refusee', [true, true, false, false], [t.estUnStatutTraite('recue'), t.estUnStatutTraite('refusee'), t.estUnStatutTraite('a-remettre'), t.estUnStatutTraite('payee')]);
+    const ouv = '2026-11-26T09:00:00.000Z';
+    const rdvsDuSoir = [
+      { id: 'r1', lienDeReglement: { payeLe: '2026-11-26T10:30:00Z', tpe: { membreId: 'brice', nom: 'Brice', le: ouv, montantXof: 30000 } }, payments: [{ amountXof: 5000 }, { amountXof: 30000 }] },
+      { id: 'r2', lienDeReglement: { tpe: { membreId: 'brice', nom: 'Brice', le: ouv, montantXof: 20000 } }, payments: [] },
+      { id: 'r3', lienDeReglement: { payeLe: '2026-11-26T11:00:00Z', tpe: { membreId: 'awa', nom: 'Awa', le: ouv, montantXof: 40000 } }, payments: [{ amountXof: 40000 }] },
+      { id: 'r4', lienDeReglement: { payeLe: '2026-11-26T08:00:00Z', tpe: { membreId: 'brice', nom: 'Brice', le: ouv, montantXof: 9000 } }, payments: [{ amountXof: 9000 }] },
+    ];
+    const especesDuSoir = [
+      { membre_id: 'brice', montant_xof: 12000, declare_le: '2026-11-26T12:00:00Z', statut: 'a-remettre', rdv_id: 'r5' },
+      { membre_id: 'brice', montant_xof: 8000, declare_le: '2026-11-26T13:00:00Z', statut: 'recue', rdv_id: 'r6' },
+      { membre_id: 'brice', montant_xof: 7000, declare_le: '2026-11-26T14:00:00Z', statut: 'refusee', rdv_id: 'r7' },
+      { membre_id: 'brice', montant_xof: 6000, declare_le: '2026-11-25T14:00:00Z', statut: 'a-remettre', rdv_id: 'r8' },
+    ];
+    egal('le total du soir : le paiement venu apres l ouverture, les especes du jour non refusees', { encaisseXof: 30000, especesXof: 20000, especesARemettreXof: 12000, seances: 3 },
+      t.totalDuSoir(rdvsDuSoir, especesDuSoir, 'brice', '2026-11-26'));
+    egal('ce que le TPE a engage : ses ouvertures du jour et ses especes du jour non refusees', 30000 + 20000 + 9000 + 12000 + 8000,
+      t.engageDuJour([...t.engagementsDesOuvertures(rdvsDuSoir, 'brice', '2026-11-26'), ...t.engagementsDesEspeces(especesDuSoir, 'brice', '2026-11-26')]));
+    dit('l identifiant d une declaration porte la seance', /^esp-r5-[0-9a-z]+$/.test(t.idDesEspeces('r5', Date.UTC(2026, 10, 26, 12))));
   }
 } finally {
   rmSync(dossier, { recursive: true, force: true });
@@ -88,6 +117,8 @@ try {
 const FICHIERS = {
   fonction: 'supabase/functions/tpe-de-poche/index.ts',
   migration: 'supabase/migrations/0246_le_tpe_de_poche.sql',
+  lot2: 'supabase/migrations/0247_le_tpe_de_poche_lot_2.sql',
+  magasin: 'src/shared/tpe-de-poche.ts',
   telephone: 'src/apps/tpe/App.tsx',
   trone: 'src/apps/trone/routes/vente/TpeDePoche.tsx',
   regler: 'src/apps/regler/App.tsx',
@@ -303,6 +334,86 @@ const controles = [
     dit: 'le banc du prenom d usage tient aussi la copie de tpe-de-poche',
     ok: (s) => /const AVEC_BLOC = \[[^\]]*'tpe-de-poche'/.test(s.prenoms),
     casse: (s) => ({ ...s, prenoms: remplace(s.prenoms, ", 'tpe-de-poche'", '') }),
+  },
+  /* ── LE LOT 2 (26 novembre 2026) ── */
+  {
+    dit: 'lot 2 : ouvrir juge les plafonds sur ce que le TPE a engage, et signe le montant d alors',
+    ok: (s) => /const verdict = plafondDuTpe\(reste, await engageAujourdhui\(tpe, leJour, rdvId\)\);\s*if \(!verdict\.ok\) return json\(\{ ok: false, raison: verdict\.raison, resteDuJourXof: verdict\.resteDuJourXof \}\);/.test(corpsDe(s.fonction, 'ouvrir'))
+      && /le: new Date\(\)\.toISOString\(\), montantXof: reste \};/.test(corpsDe(s.fonction, 'ouvrir')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, 'if (!verdict.ok) return json({ ok: false, raison: verdict.raison, resteDuJourXof: verdict.resteDuJourXof });\n  const marque', 'const marque') }),
+  },
+  {
+    dit: 'lot 2 : une seance aux especes declarees ne se rouvre pas sur un TPE',
+    ok: (s) => /if \(\(declarees \?\? \[\]\)\.length > 0\) return json\(\{ ok: false, raison: 'especes' \}\);/.test(corpsDe(s.fonction, 'ouvrir')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, "if ((declarees ?? []).length > 0) return json({ ok: false, raison: 'especes' });", '') }),
+  },
+  {
+    dit: 'lot 2 : le plafond du jour compte les ouvertures ET les especes du TPE',
+    ok: (s) => /return engageDuJour\(\[\.\.\.engagementsDesOuvertures\(rdvs, tpe\.membre_id, leJour\), \.\.\.engagementsDesEspeces\(lesEspeces, tpe\.membre_id, leJour\)\], saufRdvId\);/.test(corpsDe(s.fonction, 'engageAujourdhui')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, ', ...engagementsDesEspeces(lesEspeces, tpe.membre_id, leJour)], saufRdvId);', '], saufRdvId);') }),
+  },
+  {
+    dit: 'lot 2 : les especes ne se declarent que si la direction les a ouvertes, sur une seance du jour qui doit encore',
+    ok: (s) => /if \(tpe\.especes !== true\) return json\(\{ ok: false, raison: 'especes-fermees' \}, 403\);/.test(corpsDe(s.fonction, 'especes'))
+      && /const s = await laSeanceDuTpe\(tpe, b\.rdvId\);/.test(corpsDe(s.fonction, 'especes'))
+      && /ligne\.branch_id !== tpe\.branch_id/.test(corpsDe(s.fonction, 'laSeanceDuTpe'))
+      && /if \(!piece\) return \{ ok: false, raison: 'pas-terminee', status: 200 \};/.test(corpsDe(s.fonction, 'laSeanceDuTpe'))
+      && /if \(reste <= 0\) return \{ ok: false, raison: 'reglee', status: 200 \};/.test(corpsDe(s.fonction, 'laSeanceDuTpe')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, "if (tpe.especes !== true) return json({ ok: false, raison: 'especes-fermees' }, 403);", '') }),
+  },
+  {
+    dit: 'lot 2 : une declaration par seance, sous les plafonds, et rien d autre que la table des especes',
+    ok: (s) => {
+      const c = corpsDe(s.fonction, 'especes');
+      return /if \(\(deja \?\? \[\]\)\.length > 0\) return json\(\{ ok: true, deja: true,/.test(c)
+        && /const verdict = plafondDuTpe\(s\.reste, await engageAujourdhui\(tpe, s\.leJour, rdvId\)\);/.test(c)
+        && /admin\.from\('tpe_especes'\)\.insert\(\{/.test(c) && /statut: 'a-remettre',/.test(c)
+        && !/from\('(invoices|appointments|payments)'\)\.(insert|update|upsert)/.test(c);
+    },
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, 'const verdict = plafondDuTpe(s.reste, await engageAujourdhui(tpe, s.leJour, rdvId));', 'const verdict = { ok: true } as any;') }),
+  },
+  {
+    dit: 'lot 2 : ouvrir les especes et les dire recues ou refusees passent par la porte de la direction',
+    ok: (s) => /if \(action === 'especes-permises' \|\| action === 'especes-traitees'\) \{\s*const qui = await laDirection\(req\);\s*if \(!qui\) return json\(\{ ok: false, raison: 'refusee' \}, 403\);/.test(s.fonction),
+    casse: (s) => ({ ...s, fonction: s.fonction.replace(/(if \(action === 'especes-permises' \|\| action === 'especes-traitees'\) \{\s*const qui = await laDirection\(req\);\s*)if \(!qui\) return json\(\{ ok: false, raison: 'refusee' \}, 403\);/, '$1') }),
+  },
+  {
+    dit: 'lot 2 : une declaration ne se traite qu une fois, depuis « a remettre », en reçue ou refusee',
+    ok: (s) => /if \(!id \|\| !estUnStatutTraite\(b\.statut\)\) return json/.test(corpsDe(s.fonction, 'especesTraitees'))
+      && /\.eq\('id', id\)\.eq\('statut', 'a-remettre'\)\.select\('id'\);/.test(corpsDe(s.fonction, 'especesTraitees'))
+      && /if \(!ligne \|\| !ligne\.autorise\) return json\(\{ ok: false, raison: 'pas-autorise' \}, 403\);/.test(corpsDe(s.fonction, 'especesPermises')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, ".eq('id', id).eq('statut', 'a-remettre').select('id');", ".eq('id', id).select('id');") }),
+  },
+  {
+    dit: 'lot 2 : le jour rend le total du soir, ce qui reste du plafond, et les seances aux especes declarees',
+    ok: (s) => /const total = totalDuSoir\(rdvs, lesEspeces, tpe\.membre_id, leJour\);/.test(corpsDe(s.fonction, 'jour'))
+      && /etat: etatAuTpe\(!!piece, reste, enAttente\.has\(r\.id\)\)/.test(corpsDe(s.fonction, 'jour'))
+      && /lignes: sortie, \.\.\.enPlus \}\);/.test(corpsDe(s.fonction, 'jour')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, 'etat: etatAuTpe(!!piece, reste, enAttente.has(r.id))', 'etat: etatAuTpe(!!piece, reste)') }),
+  },
+  {
+    dit: 'lot 2 : la table des especes, RLS, lue par la direction seule, une seule en attente par seance, especes fermees par defaut',
+    ok: (s) => /alter table public\.tpe_especes enable row level security;/.test(s.lot2)
+      && /create policy direction_lit on public\.tpe_especes for select to authenticated\s+using \(public\.est_direction\(\)\);/.test(s.lot2)
+      && !/for (insert|update|delete|all)/i.test(s.lot2)
+      && /on public\.tpe_especes \(rdv_id\) where statut = 'a-remettre';/.test(s.lot2)
+      && /add column if not exists especes boolean not null default false;/.test(s.lot2),
+    casse: (s) => ({ ...s, lot2: remplace(s.lot2, 'especes boolean not null default false;', 'especes boolean not null default true;') }),
+  },
+  {
+    dit: 'lot 2 : le telephone n offre les especes que si le TPE les prend, et les fait confirmer',
+    ok: (s) => /\{jour\.especes && \(\s*<button type="button" className="tp-moyen" onClick=\{\(\) => setVue\(\{ k: 'rdv', ligne: l, especes: 'confirmer' \}\)\}>/.test(s.telephone)
+      && /onClick=\{\(\) => \{ void declare\(l\); \}\}/.test(s.telephone)
+      && /const r = await declareLesEspeces\(t\.jeton, ligne\.id\);/.test(s.telephone),
+    casse: (s) => ({ ...s, telephone: remplace(s.telephone, '{jour.especes && (', '{(') }),
+  },
+  {
+    dit: 'lot 2 : l ecran de la direction encaisse les especes par l ecran habituel, puis les marque reçues',
+    ok: (s) => /<PayAppointmentModal\s+appt=\{encaisse\.rdv\}\s+onEncaisse=\{\(\) => \{ void marqueRecue\(encaisse\.ligne\); \}\}/.test(s.trone)
+      && /gesteDuTpe\('especes-traitees', \{ id: l\.id, statut: 'recue' \}\)/.test(s.trone)
+      && /gesteDuTpe\('especes-permises', \{ branchId: branch\.id, membreId: m\.id, oui \}\)/.test(s.trone)
+      && !/from\('tpe_especes'\)\.(update|insert|upsert|delete)/.test(s.trone + s.magasin),
+    casse: (s) => ({ ...s, trone: remplace(s.trone, 'onEncaisse={() => { void marqueRecue(encaisse.ligne); }}', '') }),
   },
 ];
 

@@ -6,8 +6,9 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useBranch } from '../../../../shared/branches';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { prenomDUsage } from '../../../../shared/civilite';
-import { CHEMIN_DU_TERMINAL, adresseDActivation, codeDuTpeDit, etatDuTpe, jourDuTpe, type EtatDuTpe, type LigneDuTpe, type MarqueDuTpe } from '../../../../shared/tpe-de-poche-pur';
-import { gesteDuTpe, useLesTpe } from '../../../../shared/tpe-de-poche';
+import { CHEMIN_DU_TERMINAL, adresseDActivation, codeDuTpeDit, etatDuTpe, jourDuTpe, type EtatDuTpe, type LigneDesEspeces, type LigneDuTpe, type MarqueDuTpe } from '../../../../shared/tpe-de-poche-pur';
+import { gesteDuTpe, useLesEspeces, useLesTpe } from '../../../../shared/tpe-de-poche';
+import { PayAppointmentModal } from '../clients/actions';
 import { useStaff } from '../equipe/data';
 
 /* ══ LE TPE DE POCHE — l'écran de la direction (25 novembre 2026) ════════
@@ -45,6 +46,7 @@ const ETAT_DIT: Record<EtatDuTpe, string> = {
 const RAISON_DITE: Record<string, string> = {
   refusee: 'Seule la direction peut faire ce geste.',
   'pas-autorise': 'Cochez d’abord « Peut encaisser ».',
+  'deja-traitee': 'Ces espèces sont déjà traitées.',
   'mal-forme': 'Cette fiche de l’équipe n’a pas d’identifiant lisible.',
   injoignable: 'La Maison ne répond pas. Réessayez dans un instant.',
   panne: 'La Maison ne répond pas. Réessayez dans un instant.',
@@ -58,6 +60,10 @@ export default function TpeDePoche() {
   const [equipe] = useStaff();
   const [rdvs] = useAppointments();
   const { lignes, lu, erreur, relis } = useLesTpe(branch.id);
+  /* LES ESPÈCES (lot 2, 26 novembre 2026) : déclarées sur un TPE, reçues ici le soir. */
+  const especes = useLesEspeces(branch.id);
+  const [encaisse, setEncaisse] = useState<{ ligne: LigneDesEspeces; rdv: Appointment } | null>(null);
+  const [refus, setRefus] = useState<string | null>(null);
   const [code, setCode] = useState<CodeAffiche | null>(null);
   const [enCours, setEnCours] = useState<string | null>(null);
   const [maintenant, setMaintenant] = useState(() => Date.now());
@@ -77,7 +83,7 @@ export default function TpeDePoche() {
 
   const fais = async (cle: string, travail: () => Promise<void>) => {
     setEnCours(cle);
-    try { await travail(); } finally { setEnCours(null); relis(); }
+    try { await travail(); } finally { setEnCours(null); relis(); especes.relis(); }
   };
   const autorise = (m: { id: string; name: string }, oui: boolean) => fais(`a-${m.id}`, async () => {
     const r = await gesteDuTpe('autoriser', { branchId: branch.id, membreId: m.id, nom: m.name.trim(), autorise: oui });
@@ -89,6 +95,29 @@ export default function TpeDePoche() {
     const r = await gesteDuTpe('preparer', { branchId: branch.id, membreId: m.id });
     if (!r.ok || !r.code || !r.expireLe) { toast(raisonDite(r.raison)); return; }
     setCode({ membreId: m.id, code: r.code, expireLe: r.expireLe });
+  });
+  const permetLesEspeces = (m: { id: string; name: string }, oui: boolean) => fais(`e-${m.id}`, async () => {
+    const r = await gesteDuTpe('especes-permises', { branchId: branch.id, membreId: m.id, oui });
+    if (!r.ok) { toast(raisonDite(r.raison)); return; }
+    toast(oui ? `${m.name.trim()} peut déclarer des espèces sur son TPE, à remettre le soir.` : `${m.name.trim()} ne prend plus les espèces.`);
+  });
+  /* « Reçu » : l'écran d'encaissement habituel, ouvert sur la séance ; une fois
+     l'argent inscrit, la déclaration passe « reçue ». « Pas reçu » : refusée. */
+  const recois = (l: LigneDesEspeces) => {
+    const rdv = (rdvs as Appointment[]).find((a) => a.id === l.rdv_id);
+    if (!rdv) { toast('Ce rendez-vous n’est pas encore dans le Trône de ce poste. Rouvrez la page dans un instant.'); return; }
+    setEncaisse({ ligne: l, rdv });
+  };
+  const marqueRecue = (l: LigneDesEspeces) => fais(`r-${l.id}`, async () => {
+    const r = await gesteDuTpe('especes-traitees', { id: l.id, statut: 'recue' });
+    if (!r.ok && r.raison !== 'deja-traitee') { toast(`L’argent est inscrit ; la déclaration ne s’est pas marquée « reçue » : ${raisonDite(r.raison)}`); return; }
+    toast(`Les espèces de ${l.prenom ?? 'la cliente'} sont reçues et inscrites.`);
+  });
+  const refuse = (l: LigneDesEspeces) => fais(`f-${l.id}`, async () => {
+    const r = await gesteDuTpe('especes-traitees', { id: l.id, statut: 'refusee' });
+    setRefus(null);
+    if (!r.ok) { toast(raisonDite(r.raison)); return; }
+    toast('Noté : ces espèces n’ont pas été remises. La séance reste à régler.');
   });
   const coupe = (m: { id: string; name: string }) => fais(`c-${m.id}`, async () => {
     const r = await gesteDuTpe('couper', { branchId: branch.id, membreId: m.id });
@@ -117,6 +146,10 @@ export default function TpeDePoche() {
     const paye = a.lienDeReglement?.payeLe;
     return !!paye && Date.parse(paye) >= Date.parse(tpe.le) - 60_000;
   };
+  const aRemettre = especes.lignes.filter((e) => e.statut === 'a-remettre');
+  const traiteesDuJour = especes.lignes.filter((e) => e.statut !== 'a-remettre' && jourDuTpe(Date.parse(e.declare_le)) === aujourdhui);
+  const especesRecuesDuJour = traiteesDuJour.filter((e) => e.statut === 'recue').reduce((s, e) => s + (Number(e.montant_xof) || 0), 0);
+  const especesARemettre = aRemettre.reduce((s, e) => s + (Number(e.montant_xof) || 0), 0);
   const totalDuJour = journal.reduce((s, { a, tpe }) => {
     if (!regleApres(a, tpe)) return s;
     const dernier = [...(a.payments ?? [])].pop();
@@ -154,6 +187,13 @@ export default function TpeDePoche() {
                       onChange={(e) => { void autorise(m, e.target.checked); }} />
                     Peut encaisser
                   </label>
+                  {l?.autorise && (
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, cursor: 'pointer' }} title="Fermées par défaut. Elle déclare les billets reçus, et les remet le soir ; rien ne s’inscrit avant que vous les receviez ici.">
+                      <input type="checkbox" id={`tpe-especes-${m.id}`} checked={l.especes === true} disabled={enCours !== null}
+                        onChange={(e) => { void permetLesEspeces(m, e.target.checked); }} />
+                      Prend les espèces
+                    </label>
+                  )}
                   <Badge tone={etat === 'actif' ? 'solid' : etat === 'code' ? 'copper' : undefined}>
                     {ETAT_DIT[etat]}{etat === 'actif' && l ? ` · ${l.appareil_nom ?? 'téléphone'} · depuis ${jourEtHeureDe(l.active_le)}` : ''}{etat === 'coupe' && l?.coupe_le ? ` · ${jourEtHeureDe(l.coupe_le)}` : ''}
                   </Badge>
@@ -185,6 +225,44 @@ export default function TpeDePoche() {
         </div>
       </Card>
 
+      {(aRemettre.length > 0 || traiteesDuJour.length > 0) && (
+        <Card>
+          <div style={{ display: 'grid', gap: 10 }} data-tpe-especes="">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24 }}>Espèces à remettre</h3>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26 }}>{fmtMoney(especesARemettre, currency)}</span>
+            </div>
+            {aRemettre.length === 0 && <p style={{ margin: 0, color: 'var(--ink-soft)' }}>Tout est remis pour aujourd’hui.</p>}
+            {aRemettre.map((e) => (
+              <div key={e.id} data-tpe-espece={e.id} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0, 1fr) auto', gap: '4px 10px', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--hairline)' }}>
+                <span style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>{jourEtHeureDe(e.declare_le)}</span>
+                <span style={{ minWidth: 0, display: 'grid' }}>
+                  <b style={{ fontWeight: 500 }}>{e.prenom || 'Cliente'}</b>
+                  <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>{e.prestations ? `${e.prestations} · ` : ''}reçues par {e.nom}, sur son TPE</span>
+                </span>
+                <span style={{ display: 'grid', justifyItems: 'end', gap: 6 }}>
+                  <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: 19 }}>{fmtMoney(Number(e.montant_xof) || 0, currency)}</b>
+                  <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <Button variant="copper" size="sm" disabled={enCours !== null} onClick={() => recois(e)}>Reçu · encaisser</Button>
+                    {refus === e.id
+                      ? <Button variant="ghost" size="sm" disabled={enCours !== null} onClick={() => { void refuse(e); }}>Confirmer : pas reçu</Button>
+                      : <Button variant="ghost" size="sm" disabled={enCours !== null} onClick={() => setRefus(e.id)}>Pas reçu</Button>}
+                  </span>
+                </span>
+              </div>
+            ))}
+            {traiteesDuJour.map((e) => (
+              <div key={e.id} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0, 1fr) auto', gap: '2px 10px', alignItems: 'center', padding: '6px 0', borderTop: '1px solid var(--hairline)', color: 'var(--ink-soft)', fontSize: 13 }}>
+                <span>{heureDe(e.traite_le ?? e.declare_le)}</span>
+                <span style={{ minWidth: 0 }}>{e.prenom || 'Cliente'} · par {e.nom}</span>
+                <span>{fmtMoney(Number(e.montant_xof) || 0, currency)} · {e.statut === 'recue' ? 'reçues' : 'pas remises'}</span>
+              </div>
+            ))}
+            <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-soft)' }}>L’employée déclare les billets reçus sur son TPE ; rien ne s’inscrit sur la facture avant que vous les receviez ici. « Reçu · encaisser » ouvre l’encaissement de la séance, en espèces, dans la caisse que vous choisissez.</p>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <div style={{ display: 'grid', gap: 10 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
@@ -209,9 +287,20 @@ export default function TpeDePoche() {
               </div>
             );
           })}
-          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-soft)' }}>Un TPE n’encaisse que les séances terminées au Trône. L’argent s’inscrit seul à la confirmation de MTN (caisse MTN Collection) ou de KkiaPay (caisse KkiaPay), sur la pièce de la séance.</p>
+          {(especesRecuesDuJour > 0 || especesARemettre > 0) && (
+            <p style={{ margin: 0, fontSize: 13.5 }}>Espèces : {fmtMoney(especesRecuesDuJour, currency)} reçues{especesARemettre > 0 ? `, ${fmtMoney(especesARemettre, currency)} encore à remettre` : ''}.</p>
+          )}
+          <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-soft)' }}>Un TPE n’encaisse que les séances terminées au Trône, 300 000 F au plus par paiement et 1 000 000 F par jour. L’argent s’inscrit seul à la confirmation de MTN (caisse MTN Collection) ou de KkiaPay (caisse KkiaPay), sur la pièce de la séance.</p>
         </div>
       </Card>
+
+      {encaisse && (
+        <PayAppointmentModal
+          appt={encaisse.rdv}
+          onEncaisse={() => { void marqueRecue(encaisse.ligne); }}
+          onClose={() => { setEncaisse(null); especes.relis(); }}
+        />
+      )}
     </div>
   );
 }

@@ -69,6 +69,8 @@ export type LigneDuTpe = {
   id: string; branch_id: string; membre_id: string; nom: string; autorise: boolean;
   appareil_empreinte?: string | null; appareil_nom?: string | null; active_le?: string | null; coupe_le?: string | null;
   activation_empreinte?: string | null; activation_expire_le?: string | null; derniere_vue_le?: string | null;
+  /** Le lot 2 : la direction lui ouvre les espèces (fermées par défaut). */
+  especes?: boolean | null;
 };
 
 /** Où en est le TPE d'un membre :
@@ -90,13 +92,14 @@ export const codeEncoreBon = (l: Pick<LigneDuTpe, 'autorise' | 'activation_expir
 
 /** La marque qu'un TPE pose sur le lien de règlement du rendez-vous qu'il
     ouvre : qui, et quand. Le Trône en tire son journal du jour. */
-export type MarqueDuTpe = { nom: string; membreId: string; le: string };
+export type MarqueDuTpe = { nom: string; membreId: string; le: string; /** Le reste à l'ouverture : le plafond du jour s'y lit (lot 2). */ montantXof?: number };
 
 /** Le rendez-vous tel que le TPE le lit. */
 export type RdvDuTpe = {
   id: string; date?: string; time?: string; status?: string; clientId?: string; clientName?: string;
   serviceIds?: string[];
   lienDeReglement?: { jeton?: string; payeLe?: string; tpe?: MarqueDuTpe } | null;
+  payments?: { amountXof?: number }[];
 };
 
 /** Les rendez-vous d'un jour qu'un TPE montre : ce jour-là, jamais un
@@ -108,10 +111,12 @@ export function rdvsDuJourAuTpe<R extends RdvDuTpe>(rdvs: readonly R[], jour: st
 }
 
 /** Ce qu'un rendez-vous permet au TPE : encaisser (il a sa pièce et doit
-    encore), rien (réglé), ou attendre que le Trône termine la séance. */
-export type EtatAuTpe = 'a-encaisser' | 'reglee' | 'pas-terminee';
-export function etatAuTpe(aUnePiece: boolean, resteXof: number | null): EtatAuTpe {
+    encore), rien (réglé), attendre que le Trône termine la séance, ou
+    rien encore (des espèces sont déclarées, à remettre le soir). */
+export type EtatAuTpe = 'a-encaisser' | 'reglee' | 'pas-terminee' | 'especes';
+export function etatAuTpe(aUnePiece: boolean, resteXof: number | null, especesDeclarees = false): EtatAuTpe {
   if (!aUnePiece) return 'pas-terminee';
+  if (especesDeclarees) return 'especes';
   return resteXof !== null && resteXof <= 0 ? 'reglee' : 'a-encaisser';
 }
 
@@ -127,6 +132,104 @@ export const tpeAVerrouiller = (dernierToucherMs: number, maintenantMs: number):
 
 /** Un code à quatre chiffres. */
 export const estUnCodeSecretDuTpe = (s: unknown): boolean => typeof s === 'string' && /^\d{4}$/.test(s);
+
+/* ── LE LOT 2 (26 novembre 2026, « construis le lot 2 de la TPE », Yéman) ──
+   Les plafonds et les espèces de la maquette, retenus tels qu'elle les
+   proposait. L'attribution sur le paiement lui-même et « Autre montant »
+   suivent (2b) : ils touchent aux fonctions qui inscrivent l'argent. */
+
+/** Les plafonds : un paiement, et une journée, par TPE. Au-delà, la séance se
+    règle au comptoir. */
+export const PLAFOND_PAR_PAIEMENT_XOF = 300_000;
+export const PLAFOND_PAR_JOUR_XOF = 1_000_000;
+
+/** Ce qu'un TPE a engagé aujourd'hui. Une séance compte UNE fois, au plus
+    haut de ses montants (rouverte, ou ouverte puis payée en espèces), et
+    une séance ouverte mais pas encore payée compte déjà : le plafond se juge
+    à l'ouverture, jamais après coup. */
+export type EngagementDuTpe = { rdvId: string; montantXof: number };
+export function engageDuJour(engagements: readonly EngagementDuTpe[], saufRdvId = ''): number {
+  const parRdv = new Map<string, number>();
+  for (const e of engagements) {
+    if (!e || !e.rdvId || e.rdvId === saufRdvId) continue;
+    const m = Math.max(0, Math.round(Number(e.montantXof) || 0));
+    parRdv.set(e.rdvId, Math.max(parRdv.get(e.rdvId) ?? 0, m));
+  }
+  let total = 0;
+  for (const m of parRdv.values()) total += m;
+  return total;
+}
+
+/** Ce montant peut-il s'encaisser sur ce TPE ? */
+export type VerdictDuPlafond = { ok: true } | { ok: false; raison: 'plafond-paiement' | 'plafond-jour'; resteDuJourXof: number };
+export function plafondDuTpe(montantXof: number, dejaEngageXof: number): VerdictDuPlafond {
+  const m = Math.max(0, Math.round(Number(montantXof) || 0));
+  const deja = Math.max(0, Math.round(Number(dejaEngageXof) || 0));
+  const resteDuJourXof = Math.max(0, PLAFOND_PAR_JOUR_XOF - deja);
+  if (m > PLAFOND_PAR_PAIEMENT_XOF) return { ok: false, raison: 'plafond-paiement', resteDuJourXof };
+  if (m > resteDuJourXof) return { ok: false, raison: 'plafond-jour', resteDuJourXof };
+  return { ok: true };
+}
+
+/** LES ESPÈCES. Fermées par défaut, ouvertes par la direction, membre par
+    membre. L'employée DÉCLARE les billets reçus pour une séance : ce n'est
+    pas encore l'argent de la Maison, rien ne s'inscrit sur la pièce. Elle
+    les remet le soir ; la direction les reçoit au Trône et les encaisse par
+    son écran d'encaissement habituel (« Reçu »), ou dit « Pas reçu ». */
+export type StatutDesEspeces = 'a-remettre' | 'recue' | 'refusee';
+export type LigneDesEspeces = {
+  id: string; branch_id: string; membre_id: string; nom: string; rdv_id: string; piece_id: string; montant_xof: number;
+  prenom?: string | null; prestations?: string | null; declare_le: string; statut: StatutDesEspeces;
+  traite_le?: string | null; traite_par?: string | null; encaissement_id?: string | null;
+};
+/** L'identifiant d'une déclaration : la séance, et l'instant. */
+export const idDesEspeces = (rdvId: string, ms: number): string => `esp-${rdvId}-${Math.max(0, Math.floor(ms)).toString(36)}`;
+/** Un statut que la direction peut donner : reçue, ou refusée. */
+export const estUnStatutTraite = (s: unknown): s is 'recue' | 'refusee' => s === 'recue' || s === 'refusee';
+
+/** Les espèces déclarées aujourd'hui par un TPE, pas refusées, en engagements. */
+export function engagementsDesEspeces(lignes: readonly Pick<LigneDesEspeces, 'rdv_id' | 'montant_xof' | 'membre_id' | 'declare_le' | 'statut'>[], membreId: string, jour: string): EngagementDuTpe[] {
+  return lignes
+    .filter((l) => l && l.membre_id === membreId && l.statut !== 'refusee' && jourDuTpe(Date.parse(l.declare_le)) === jour)
+    .map((l) => ({ rdvId: l.rdv_id, montantXof: l.montant_xof }));
+}
+
+/** Les séances qu'un TPE a ouvertes aujourd'hui, en engagements (au montant de leur ouverture). */
+export function engagementsDesOuvertures(rdvs: readonly RdvDuTpe[], membreId: string, jour: string): EngagementDuTpe[] {
+  return rdvs
+    .filter((r) => r?.lienDeReglement?.tpe?.membreId === membreId && jourDuTpe(Date.parse(String(r.lienDeReglement.tpe.le))) === jour)
+    .map((r) => ({ rdvId: r.id, montantXof: Number(r.lienDeReglement?.tpe?.montantXof) || 0 }));
+}
+
+/** LE TOTAL DU SOIR d'un TPE : ce que KkiaPay ou MTN ont confirmé sur les
+    séances qu'il a ouvertes (le dernier paiement, venu après l'ouverture), et
+    les espèces déclarées (à remettre ou reçues). */
+export type TotalDuSoir = { encaisseXof: number; especesXof: number; especesARemettreXof: number; seances: number };
+export function totalDuSoir(
+  rdvs: readonly RdvDuTpe[],
+  especes: readonly Pick<LigneDesEspeces, 'montant_xof' | 'membre_id' | 'declare_le' | 'statut'>[],
+  membreId: string, jour: string,
+): TotalDuSoir {
+  let encaisseXof = 0; let especesXof = 0; let especesARemettreXof = 0; let seances = 0;
+  for (const r of rdvs) {
+    const t = r?.lienDeReglement?.tpe;
+    if (!t || t.membreId !== membreId || jourDuTpe(Date.parse(String(t.le))) !== jour) continue;
+    const paye = r.lienDeReglement?.payeLe;
+    if (!paye || Date.parse(paye) < Date.parse(t.le) - 60_000) continue;
+    const liste = Array.isArray(r.payments) ? r.payments : [];
+    const dernier = liste[liste.length - 1];
+    encaisseXof += Math.max(0, Math.round(Number(dernier?.amountXof) || 0));
+    seances += 1;
+  }
+  for (const e of especes) {
+    if (!e || e.membre_id !== membreId || e.statut === 'refusee' || jourDuTpe(Date.parse(e.declare_le)) !== jour) continue;
+    const m = Math.max(0, Math.round(Number(e.montant_xof) || 0));
+    especesXof += m;
+    if (e.statut === 'a-remettre') especesARemettreXof += m;
+    seances += 1;
+  }
+  return { encaisseXof, especesXof, especesARemettreXof, seances };
+}
 /* ⟨/tpe-de-poche⟩ */
 
 /** OÙ VIT TRÔNE TERMINAL — 26 novembre 2026 : sur le site du portail, hors de

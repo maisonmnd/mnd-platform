@@ -4,7 +4,7 @@
    (regler-la-seance-serveur.ts), un simple fetch avec la clé publique : rien
    de la synchronisation du Trône n'entre dans cette page. Voir
    tpe-de-poche-pur.ts. */
-import { estUnCodeSecretDuTpe, estUnJetonDAppareil, type LigneDuJourAuTpe } from './tpe-de-poche-pur';
+import { estUnCodeSecretDuTpe, estUnJetonDAppareil, type LigneDuJourAuTpe, type TotalDuSoir } from './tpe-de-poche-pur';
 
 const URL_PROJET = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '';
 const CLE_ANON = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? '';
@@ -15,6 +15,8 @@ export type ReponseDuTpe = {
   jeton?: string; nom?: string; membreId?: string; branchId?: string;
   jour?: string; lignes?: LigneDuJourAuTpe[];
   jetonDuLien?: string; resteXof?: number;
+  /* Le lot 2 (26 novembre 2026) : les espèces, le total du soir, les plafonds. */
+  especes?: boolean; total?: TotalDuSoir; resteDuJourXof?: number; plafondParPaiementXof?: number; montantXof?: number; deja?: boolean;
 };
 
 async function appel(corps: Record<string, unknown>): Promise<ReponseDuTpe> {
@@ -35,6 +37,8 @@ async function appel(corps: Record<string, unknown>): Promise<ReponseDuTpe> {
 export const activeLeTelephone = (code: string, appareil: string) => appel({ action: 'activer', code, appareil });
 export const lisLeJourDuTpe = (jeton: string) => appel({ action: 'jour', jeton });
 export const ouvreLeRdvAuTpe = (jeton: string, rdvId: string) => appel({ action: 'ouvrir', jeton, rdvId });
+/** Le lot 2 : l'employée déclare les billets reçus pour une séance (à remettre le soir). */
+export const declareLesEspeces = (jeton: string, rdvId: string) => appel({ action: 'especes', jeton, rdvId });
 
 /* ── CE QUE LE TÉLÉPHONE GARDE ──
    Le jeton (il ne revient jamais du serveur une seconde fois) et l'empreinte

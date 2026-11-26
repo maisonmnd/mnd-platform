@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { QrSvg } from '../../ds/qr';
-import { codeDuTpePropre, estUnCodeDuTpe, tpeAVerrouiller, type LigneDuJourAuTpe } from '../../shared/tpe-de-poche-pur';
+import { PLAFOND_PAR_JOUR_XOF, codeDuTpePropre, estUnCodeDuTpe, tpeAVerrouiller, type LigneDuJourAuTpe, type TotalDuSoir } from '../../shared/tpe-de-poche-pur';
 import {
-  activeLeTelephone, dernierToucher, empreinteDuSecret, gardeLeTpe, lisLeJourDuTpe, lisLeTpeGarde, nomDuTelephone,
+  activeLeTelephone, declareLesEspeces, dernierToucher, empreinteDuSecret, gardeLeTpe, lisLeJourDuTpe, lisLeTpeGarde, nomDuTelephone,
   noteLeToucher, oublieLeToucher, ouvreLeRdvAuTpe, secretJuste, type TpeGarde,
 } from '../../shared/tpe-de-poche-telephone';
 
@@ -146,7 +146,7 @@ type Vue =
   | { k: 'secret-choisir'; premier?: string }
   | { k: 'verrou' }
   | { k: 'liste' }
-  | { k: 'rdv'; ligne: LigneDuJourAuTpe; erreur?: string; enCours?: boolean; qr?: string }
+  | { k: 'rdv'; ligne: LigneDuJourAuTpe; erreur?: string; enCours?: boolean; qr?: string; especes?: 'confirmer' | 'fait'; montantXof?: number }
   | { k: 'coupe' };
 
 const RELECTURE_MS = 20_000;
@@ -164,6 +164,11 @@ const jourDit = (iso?: string): string => {
 const dossier = (): string => window.location.pathname.replace(/[^/]*$/, '');
 const RAISON_DITE: Record<string, string> = {
   'pas-terminee': 'La séance n’est pas encore terminée au Trône. Le maître la termine, puis vous encaissez.',
+  /* Le lot 2 (26 novembre 2026) */
+  'plafond-paiement': 'Au-delà de 300 000 F, cette séance se règle au comptoir.',
+  'plafond-jour': 'Le plafond du jour de ce TPE est atteint : cette séance se règle au comptoir.',
+  'especes-fermees': 'Ce TPE ne prend pas les espèces. La direction peut les ouvrir au Trône.',
+  especes: 'Des espèces sont déjà déclarées pour cette séance : la direction les attend ce soir.',
   reglee: 'Cette séance est déjà réglée.',
   introuvable: 'Ce rendez-vous n’est plus dans la journée.',
   ecriture: 'Le Trône écrivait ce rendez-vous au même instant. Réessayez.',
@@ -172,6 +177,11 @@ const RAISON_DITE: Record<string, string> = {
   panne: 'La Maison ne répond pas. Réessayez dans un instant.',
 };
 const raisonDite = (r?: string): string => RAISON_DITE[r ?? ''] ?? 'La Maison ne répond pas. Réessayez dans un instant.';
+/** Le refus, et pour le plafond du jour, ce qui en reste. */
+const raisonDuRefus = (r?: string, resteDuJourXof?: number): string =>
+  r === 'plafond-jour' && typeof resteDuJourXof === 'number'
+    ? `Le plafond du jour de ce TPE ne laisse plus que ${francs(resteDuJourXof)} : cette séance se règle au comptoir.`
+    : raisonDite(r);
 
 function Clavier({ onChiffre, onEfface }: { onChiffre: (c: string) => void; onEfface: () => void }) {
   return (
@@ -204,7 +214,7 @@ export default function App() {
   });
   const [saisie, setSaisie] = useState('');
   const [erreurs, setErreurs] = useState(0);
-  const [jour, setJour] = useState<{ jour?: string; lignes: LigneDuJourAuTpe[]; lu: boolean; erreur?: string }>({ lignes: [], lu: false });
+  const [jour, setJour] = useState<{ jour?: string; lignes: LigneDuJourAuTpe[]; lu: boolean; erreur?: string; especes?: boolean; total?: TotalDuSoir; resteDuJourXof?: number }>({ lignes: [], lu: false });
   const activationLancee = useRef(false);
   const [invitation, setInvitation] = useState<InvitationAInstaller | null>(null);
 
@@ -280,7 +290,7 @@ export default function App() {
     const r = await lisLeJourDuTpe(t.jeton);
     if (r.raison === 'coupe') { coupe(); return; }
     if (!r.ok) { setJour((j) => ({ ...j, lu: true, erreur: raisonDite(r.raison) })); return; }
-    setJour({ jour: r.jour, lignes: r.lignes ?? [], lu: true });
+    setJour({ jour: r.jour, lignes: r.lignes ?? [], lu: true, especes: r.especes === true, total: r.total, resteDuJourXof: r.resteDuJourXof });
   }, [coupe]);
   useEffect(() => {
     if (vue.k !== 'liste' && vue.k !== 'rdv') return;
@@ -327,13 +337,26 @@ export default function App() {
     setVue({ k: 'rdv', ligne, enCours: true });
     const r = await ouvreLeRdvAuTpe(t.jeton, ligne.id);
     if (r.raison === 'coupe') { coupe(); return; }
-    if (!r.ok || !r.jetonDuLien) { setVue({ k: 'rdv', ligne, erreur: raisonDite(r.raison) }); return; }
+    if (!r.ok || !r.jetonDuLien) { setVue({ k: 'rdv', ligne, erreur: raisonDuRefus(r.raison, r.resteDuJourXof) }); return; }
     if (comment === 'ici') {
       noteLeToucher();
       window.location.assign(`${dossier()}regler.html?r=${encodeURIComponent(r.jetonDuLien)}&tpe=1`);
       return;
     }
     setVue({ k: 'rdv', ligne, qr: `${window.location.origin}${dossier()}payer.html?tg=r-${encodeURIComponent(r.jetonDuLien)}` });
+  };
+
+  /* ── LES ESPÈCES (lot 2) : déclarées ici, remises le soir, encaissées par la direction. ── */
+  const declare = async (ligne: LigneDuJourAuTpe) => {
+    const t = lisLeTpeGarde();
+    if (!t) { setVue({ k: 'activation', code: '' }); return; }
+    setVue({ k: 'rdv', ligne, especes: 'confirmer', enCours: true });
+    const r = await declareLesEspeces(t.jeton, ligne.id);
+    if (r.raison === 'coupe') { coupe(); return; }
+    if (!r.ok) { setVue({ k: 'rdv', ligne, erreur: raisonDuRefus(r.raison, r.resteDuJourXof) }); return; }
+    noteLeToucher();
+    setVue({ k: 'rdv', ligne, especes: 'fait', montantXof: Number(r.montantXof) || Number(ligne.resteXof) || 0 });
+    void relis();
   };
 
   const tete = (
@@ -445,6 +468,19 @@ export default function App() {
               <QrSvg valeur={vue.qr} style={{ width: 220, height: 220, display: 'block', margin: '0 auto' }} dit={`Le lien de règlement de ${l.prenom}`} />
               <p className="tp-doux tp-petit">La liste se met à jour quand c’est réglé.</p>
             </div>
+          ) : vue.especes === 'fait' ? (
+            <div className="tp-pile tp-centre">
+              <p className="tp-montant">{francs(vue.montantXof ?? 0)}</p>
+              <p>Noté : en espèces, à remettre ce soir à la direction.</p>
+              <p className="tp-doux tp-petit">Rien ne s’inscrit sur sa facture avant que la direction les reçoive au Trône.</p>
+            </div>
+          ) : vue.especes === 'confirmer' ? (
+            <div className="tp-pile">
+              <p>Vous avez reçu <b>{l.resteXof !== null ? francs(l.resteXof) : 'le montant'}</b> en espèces de {l.prenom} ?</p>
+              <p className="tp-doux tp-petit">Vous les remettrez ce soir à la direction. Rien ne s’inscrit sur sa facture avant.</p>
+              <button type="button" className="tp-btn tp-btn--plein" disabled={vue.enCours} onClick={() => { void declare(l); }}>{vue.enCours ? 'Un instant…' : 'Oui, je les ai reçus'}</button>
+              <button type="button" className="tp-btn" disabled={vue.enCours} onClick={() => setVue({ k: 'rdv', ligne: l })}>Non, revenir</button>
+            </div>
           ) : vue.enCours ? <p className="tp-doux tp-centre">Ouverture…</p> : (
             <div className="tp-pile">
               <button type="button" className="tp-moyen" onClick={() => { void ouvre(l, 'ici'); }}>
@@ -455,6 +491,12 @@ export default function App() {
                 <b>Elle paie sur son téléphone</b>
                 <span>Un QR à lui montrer : elle règle chez elle, carte ou mobile money.</span>
               </button>
+              {jour.especes && (
+                <button type="button" className="tp-moyen" onClick={() => setVue({ k: 'rdv', ligne: l, especes: 'confirmer' })}>
+                  <b>Elle paie en espèces</b>
+                  <span>Vous gardez les billets et les remettez ce soir à la direction.</span>
+                </button>
+              )}
             </div>
           )}
           {vue.erreur && <p className="tp-alerte" role="alert">{vue.erreur}</p>}
@@ -485,6 +527,7 @@ export default function App() {
                   <span className="tp-m">
                     {l.etat === 'reglee' ? <span className="tp-puce tp-puce--bon">Réglé</span>
                       : l.etat === 'pas-terminee' ? <span className="tp-puce">Pas terminée</span>
+                      : l.etat === 'especes' ? <span className="tp-puce">Espèces · à remettre</span>
                         : l.resteXof !== null ? francs(l.resteXof) : 'À encaisser'}
                   </span>
                 </button>
@@ -492,6 +535,16 @@ export default function App() {
             );
           })}
         </ul>
+        {/* LE TOTAL DU SOIR (lot 2) : ce que MTN et KkiaPay ont confirmé, et les espèces à remettre. */}
+        {jour.total && jour.total.seances > 0 && (
+          <p className="tp-total">
+            <span>Ce soir</span>
+            <b>{francs(jour.total.encaisseXof)}</b> encaissés{jour.total.especesARemettreXof > 0 ? <> · <b>{francs(jour.total.especesARemettreXof)}</b> en espèces à remettre</> : null}
+          </p>
+        )}
+        {typeof jour.resteDuJourXof === 'number' && jour.resteDuJourXof < PLAFOND_PAR_JOUR_XOF && (
+          <p className="tp-doux tp-petit">Plafond du jour : encore {francs(jour.resteDuJourXof)} sur ce TPE.</p>
+        )}
         <p className="tp-doux tp-petit">Une séance s’encaisse ici dès que le maître l’a terminée au Trône. L’argent arrive sur les comptes de la Maison, jamais sur ce téléphone.</p>
         <Installer invitation={invitation} onInstalle={() => setInvitation(null)} />
         <button type="button" className="tp-lien" onClick={() => { gardeLeTpe(null); oublieLeToucher(); setTpe(null); setVue({ k: 'activation', code: '' }); }}>

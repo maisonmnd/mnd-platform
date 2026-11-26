@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import type { LigneDuTpe } from './tpe-de-poche-pur';
+import { jourDuTpe, type LigneDesEspeces, type LigneDuTpe } from './tpe-de-poche-pur';
 
 /* ══ LE TPE DE POCHE, CÔTÉ TRÔNE — 25 novembre 2026 ══════════════════════
    La direction lit la table `tpe_de_poche` (RLS `est_direction`, 0246) et
@@ -8,8 +8,8 @@ import type { LigneDuTpe } from './tpe-de-poche-pur';
    préparer un code d'activation, couper. Elle n'écrit jamais la table
    elle-même : aucune politique d'écriture n'existe. Voir tpe-de-poche-pur.ts. */
 
-export type GesteDuTpe = 'autoriser' | 'preparer' | 'couper';
-export type ReponseDuGeste = { ok: boolean; raison?: string; code?: string; expireLe?: string; etat?: string };
+export type GesteDuTpe = 'autoriser' | 'preparer' | 'couper' | 'especes-permises' | 'especes-traitees';
+export type ReponseDuGeste = { ok: boolean; raison?: string; code?: string; expireLe?: string; etat?: string; especes?: boolean; statut?: string };
 
 /** Un geste de la direction. Hors ligne ou sans réponse : `injoignable`. */
 export async function gesteDuTpe(action: GesteDuTpe, corps: Record<string, unknown>): Promise<ReponseDuGeste> {
@@ -41,6 +41,28 @@ export function useLesTpe(branchId: string): { lignes: LigneDuTpe[]; lu: boolean
       if (error) { setEtat((e) => ({ ...e, lu: true, erreur: true })); return; }
       setEtat({ lignes: (data ?? []) as LigneDuTpe[], lu: true, erreur: false });
     });
+  }, [branchId]);
+  useEffect(() => {
+    relis();
+    const minuterie = setInterval(relis, PAS_MS);
+    return () => clearInterval(minuterie);
+  }, [relis]);
+  return { ...etat, relis };
+}
+
+/** LES ESPÈCES DES TPE (lot 2, 26 novembre 2026) : celles encore à remettre,
+    et celles du jour déjà traitées. La table se lit (RLS `est_direction`,
+    0247) ; elle ne s'écrit que par la fonction. */
+export function useLesEspeces(branchId: string): { lignes: LigneDesEspeces[]; lu: boolean; erreur: boolean; relis: () => void } {
+  const [etat, setEtat] = useState<{ lignes: LigneDesEspeces[]; lu: boolean; erreur: boolean }>({ lignes: [], lu: false, erreur: false });
+  const relis = useCallback(() => {
+    if (!supabase || !branchId) return;
+    const debut = `${jourDuTpe(Date.now())}T00:00:00+01:00`;
+    void supabase.from('tpe_especes').select('*').eq('branch_id', branchId).or(`statut.eq.a-remettre,declare_le.gte.${debut}`)
+      .order('declare_le', { ascending: false }).limit(200).then(({ data, error }) => {
+        if (error) { setEtat((e) => ({ ...e, lu: true, erreur: true })); return; }
+        setEtat({ lignes: (data ?? []) as LigneDesEspeces[], lu: true, erreur: false });
+      });
   }, [branchId]);
   useEffect(() => {
     relis();
