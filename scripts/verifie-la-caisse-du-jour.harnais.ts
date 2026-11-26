@@ -397,5 +397,45 @@ vrai('l écran lit le livre de son départ à la veille, la clôture et la remis
   && /clotureLe: derniereCloture\(clotures, branch\.id, nom, veille\)\?\.date,/.test(code)
   && /remiseLe: derniereRemiseDe\(horsActivite\.filter\(\(m\) => m\.date\.slice\(0, 10\) <= veille\), branch\.id, nom\),/.test(code));
 
+/* ══ LA CLÔTURE DE SECOURS, MÊME RÈGLE QUE LA JOURNÉE — 26 novembre 2026 (audit A7) ══
+   Caisses › « Clôturer » (`ClotureDuTiroir`) calculait l'attendu sans les
+   pourboires gardés au tiroir : chaque clôture faite par là annonçait un
+   excédent égal aux pourboires. Données de banc, attentes écrites à la main :
+   clôture du 2 (laissé 50 000 F, livre 40 000 F), le livre bouge de + 5 000 F
+   le 3 (45 000 F au matin du 4), le 4 : + 20 000 F versés, − 3 000 F sortis ;
+   en attente : 1 000 F du 3, 2 000 F du 4 ; pourboires du tiroir : 700 F le 2
+   (dans le compté du 2), 1 500 F le 3, 2 500 F le 4 ; 900 F le 4 dans un autre. */
+{
+  const S = 'Tiroir de banc';
+  const derniere = { laisseXof: 50000, livreXof: 40000, date: '2026-11-02' };
+  const pb = [
+    { invoiceId: 'inv-s1', cashbox: S, xof: 700, jour: '2026-11-02' },
+    { invoiceId: 'inv-s2', cashbox: S, xof: 1500, jour: VEILLE },
+    { invoiceId: 'inv-s3', cashbox: S, xof: 2500, jour: J },
+    { invoiceId: 'inv-s4', cashbox: 'Un autre tiroir', xof: 900, jour: J },
+  ];
+  const c = laCaisseDuJour({
+    nom: S, jour: J, livreMatinXof: 45000,
+    moves: [{ date: J, delta: 20000, label: 'Versement', invoiceId: 'inv-s5' }, { date: J, delta: -3000, label: 'Sortie', expenseId: 'exp-s1' }],
+    enAttente: [{ id: 'exp-a1', label: 'Attente du 3', date: VEILLE, xof: 1000 }, { id: 'exp-a2', label: 'Attente du 4', date: J, xof: 2000 }],
+    derniere, pourboires: pb,
+  });
+  /* L'ancienne règle de la clôture de secours : le livre du soir moins toutes les attentes. */
+  const ancien = attenduDuTiroir({ livreMaintenantXof: 45000 + 20000 - 3000 - 1000 - 2000, derniere });
+  dit('clôture de secours : l ancien attendu oubliait 4 000 F de pourboires (69 000 F au lieu de 73 000 F)', [69000, 73000, 4000], [ancien, c.disponibleXof, c.pourboiresDuMatinXof + c.pourboiresXof]);
+  dit('... le livre retenu par la clôture reste celui du soir sans pourboires ni attentes', 59000, c.livreAClotureXof);
+
+  const cloture = readFileSync('src/apps/trone/routes/finances/ClotureDuTiroir.tsx', 'utf8').replace(/\r\n/g, '\n');
+  vrai('la clôture de secours calcule par laCaisseDuJour, avec les pourboires des pièces de la branche',
+    /const caisseDuJour = laCaisseDuJour\(\{/.test(cloture) && /pourboiresDesPieces\(pieces, branch\.id\)/.test(cloture) && /\n {4}pourboires,\n/.test(cloture));
+  vrai('... son attendu est le disponible de La journée, hors recompte du jour', /const attendu = recompteDuJour\n\s+\? attenduDuTiroir\(\{ livreMaintenantXof: livreMaintenant, derniere \}\)\n\s+: caisseDuJour\.disponibleXof;/.test(cloture));
+  vrai('... le matin part de la clôture d avant le jour, comme La journée', /const precedente = derniereCloture\(clotures, branch\.id, box\.name, veilleDe\(jour\)\);/.test(cloture)
+    && /livreXof: livreDeLaCloture\(precedente, caisses\.horsActiviteJusquAu\(box\.name, precedente\.date\)\)/.test(cloture));
+  vrai('... une remise à 0 F emporte les pourboires gardés, les remises sont lues', /suiviDepuis: derniereRemiseDe\(horsActivite, branch\.id, box\.name\),/.test(cloture)
+    && /remises: remisesDesPourboires\(horsActivite, branch\.id, box\.name\),/.test(cloture));
+  vrai('... le recompte d un jour clôturé ne recompte pas les pourboires', /const pourboiresAuTiroir = recompteDuJour \? 0 : caisseDuJour\.pourboiresDuMatinXof \+ caisseDuJour\.pourboiresXof;/.test(cloture));
+  vrai('... l explication dit les pourboires sur leur ligne, pas dans « autres »', /const autres = attendu - base - sommeDuJour \+ enAttente - pourboiresAuTiroir;/.test(cloture) && /Pourboires gardés au tiroir/.test(cloture));
+}
+
 console.log(ko === 0 ? '\nLa caisse du jour tient ses chiffres : disponible, totaux cochés, pourboires, clôture.' : `\n${ko} controle(s) en echec.`);
 process.exitCode = ko === 0 ? 0 : 1;

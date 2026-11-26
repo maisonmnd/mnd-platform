@@ -41,6 +41,7 @@ globalThis.CustomEvent = class { constructor(t, o) { this.type = t; Object.assig
 const PUR = 'src/shared/caisse-du-jour-pur.ts';
 const ECRAN = 'src/apps/trone/routes/finances/JournalDeCaisse.tsx';
 const FINANCE = 'src/shared/finance.ts';
+const SECOURS = 'src/apps/trone/routes/finances/ClotureDuTiroir.tsx';
 const PANNES = [
   ['le disponible oublie les pourboires', PUR, 'disponibleXof: matinXof + versementsXof + pourboiresXof + autresEntreesXof - sortiesXof,', 'disponibleXof: matinXof + versementsXof + autresEntreesXof - sortiesXof,'],
   ['le disponible oublie les sorties', PUR, 'disponibleXof: matinXof + versementsXof + pourboiresXof + autresEntreesXof - sortiesXof,', 'disponibleXof: matinXof + versementsXof + pourboiresXof + autresEntreesXof,'],
@@ -95,6 +96,13 @@ const PANNES = [
   ['la ligne entiere ne choisit plus la caisse', ECRAN, 'data-caisse={nom} onClick={(e) => surLaLigne(e, l)}', 'data-caisse={nom}'],
   ['l ecran lit le livre depuis toujours', ECRAN, 'avant: de <= veille ? boxMoves(nom, { de, a: veille })', "avant: de <= veille ? boxMoves(nom, { de: '1900-01-01', a: veille })"],
   ['le livre ignore la cloture', ECRAN, 'clotureLe: derniereCloture(clotures, branch.id, nom, veille)?.date,', 'clotureLe: undefined,'],
+  /* La cloture de secours, meme regle que La journee (26 novembre 2026, audit A7). */
+  ['la cloture de secours oublie les pourboires', SECOURS, '    : caisseDuJour.disponibleXof;', '    : attenduDuTiroir({ livreMaintenantXof: livreMaintenant, derniere });'],
+  ['la cloture de secours ne lit plus les pourboires', SECOURS, '    pourboires,\n    remises:', '    pourboires: [],\n    remises:'],
+  ['la cloture de secours part de la cloture du jour', SECOURS, 'derniereCloture(clotures, branch.id, box.name, veilleDe(jour));', 'derniereCloture(clotures, branch.id, box.name, jour);'],
+  ['la cloture de secours oublie la remise a 0 F', SECOURS, '    suiviDepuis: derniereRemiseDe(horsActivite, branch.id, box.name),\n', ''],
+  ['le recompte du jour recompte les pourboires', SECOURS, 'const pourboiresAuTiroir = recompteDuJour ? 0 :', 'const pourboiresAuTiroir = false ? 0 :'],
+  ['l explication range les pourboires dans autres', SECOURS, '+ enAttente - pourboiresAuTiroir;', '+ enAttente;'],
 ];
 
 const md5 = (f) => createHash('md5').update(readFileSync(path.join(racine, f))).digest('hex');

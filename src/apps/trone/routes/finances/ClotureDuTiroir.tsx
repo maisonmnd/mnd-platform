@@ -12,6 +12,9 @@ import {
   COUPURES, attenduDuTiroir, derniereCloture, fondPropose, jourPropose, livreDeLaCloture, nouvelleCloture, pourquoiOnNeCloturePas, pourquoiPasCeJour,
   sommeDuBilletage, surplusAuCoffre, tiroirsQuiSeComptent, tiroirsSansCloture, versementParDefaut, type Cloture,
 } from '../../../../shared/caisse-du-soir-pur';
+import { laCaisseDuJour, pourboiresDesPieces, remisesDesPourboires, type PourboireDuJour } from '../../../../shared/caisse-du-jour-pur';
+import { derniereRemiseDe } from '../../../../shared/remise-a-zero-pur';
+import { usePiecesDeLaMaison } from '../../../../shared/essai';
 import { useCaisses } from './tiroirs';
 import { ChampDeDate } from '../../../../ds/dates';
 import { ChampPieceJointe, monthKey, todayISO, useRegistreEncaissements } from './_shared';
@@ -63,6 +66,10 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande, jour: jourDema
   const [expenses] = useExpenses();
   const [horsActivite] = useEntreesHorsActivite();
   const registre = useRegistreEncaissements();
+  /* Les pourboires des pièces, chacun à son jour et dans sa caisse : la même
+     lecture que La journée (`JournalDeCaisse`). */
+  const [pieces] = usePiecesDeLaMaison();
+  const pourboires = useMemo(() => pourboiresDesPieces(pieces, branch.id), [pieces, branch.id]);
   const me = useMaTete();
   const moi = me?.name?.trim() || 'Sans nom';
 
@@ -125,6 +132,8 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande, jour: jourDema
           clotures={clotures}
           expenses={expenses}
           caisses={caisses}
+          pourboires={pourboires}
+          horsActivite={horsActivite}
           monnaie={currency}
           onRetour={() => setChoisi(null)}
           onFini={onClose}
@@ -134,7 +143,7 @@ export function ClotureDuTiroir({ onClose, tiroir: tiroirDemande, jour: jourDema
   );
 }
 
-function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisses, monnaie, onRetour, onFini }: {
+function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisses, pourboires, horsActivite, monnaie, onRetour, onFini }: {
   box: Cashbox;
   /** Le jour clôturé (choisi). */
   jour: string;
@@ -144,6 +153,10 @@ function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisse
   clotures: Cloture[];
   expenses: Expense[];
   caisses: ReturnType<typeof useCaisses>;
+  /** Les pourboires des pièces de la branche (`pourboiresDesPieces`). */
+  pourboires: readonly PourboireDuJour[];
+  /** Les entrées et sorties hors activité (remises des pourboires, remises à 0 F). */
+  horsActivite: ReturnType<typeof useEntreesHorsActivite>[0];
   monnaie: string;
   onRetour: () => void;
   onFini: () => void;
@@ -169,7 +182,41 @@ function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisse
   const derniere = derniereBrute
     ? { ...derniereBrute, livreXof: livreDeLaCloture(derniereBrute, caisses.horsActiviteJusquAu(box.name, derniereBrute.date)) }
     : undefined;
-  const attendu = attenduDuTiroir({ livreMaintenantXof: livreMaintenant, derniere });
+  /* LES POURBOIRES GARDÉS AU TIROIR — 26 novembre 2026 (audit du Trône, A7,
+     « construis » de Yéman). Depuis le 5 novembre, les pourboires en espèces
+     restent dans le tiroir jusqu'aux salaires ; le livre ne les porte pas
+     (ils vont au bocal). La journée (`JournalDeCaisse`) les compte dans le
+     disponible ; cette clôture-ci les oubliait et annonçait un excédent égal
+     aux pourboires. Elle appelle désormais la même règle, `laCaisseDuJour`,
+     avec les mêmes entrées que La journée : son disponible EST l'attendu.
+     Seule exception, le recompte d'un jour déjà clôturé : il part du compté
+     de cette clôture-là, qui tenait déjà les pourboires entrés avant elle. */
+  const recompteDuJour = !!derniere && derniere.date === jour;
+  const precedente = derniereCloture(clotures, branch.id, box.name, veilleDe(jour));
+  const caisseDuJour = laCaisseDuJour({
+    nom: box.name, jour,
+    livreMatinXof: duJour.startBalance,
+    moves: duJour.moves.map((m) => ({
+      date: m.date, delta: m.delta, label: m.label, sub: m.sub,
+      ...(m.invoiceId ? { invoiceId: m.invoiceId } : {}),
+      ...(m.expense ? { expenseId: m.expense.id } : {}),
+      ...(m.transfertId ? { transfertId: m.transfertId } : {}),
+    })),
+    enAttente: aValiderDepenses(expenses, branch.id)
+      .filter((e) => e.cashbox === box.name && !e.avancee && e.date <= jour)
+      .map((e) => ({ id: e.id, label: e.label, date: e.date, xof: expenseTotal(e) })),
+    derniere: precedente
+      ? { laisseXof: precedente.laisseXof, livreXof: livreDeLaCloture(precedente, caisses.horsActiviteJusquAu(box.name, precedente.date)), date: precedente.date }
+      : undefined,
+    pourboires,
+    remises: remisesDesPourboires(horsActivite, branch.id, box.name),
+    /* Une remise à 0 F du tiroir emporte ce qu'il gardait, pourboires compris. */
+    suiviDepuis: derniereRemiseDe(horsActivite, branch.id, box.name),
+  });
+  const pourboiresAuTiroir = recompteDuJour ? 0 : caisseDuJour.pourboiresDuMatinXof + caisseDuJour.pourboiresXof;
+  const attendu = recompteDuJour
+    ? attenduDuTiroir({ livreMaintenantXof: livreMaintenant, derniere })
+    : caisseDuJour.disponibleXof;
   const horsBorne = pourquoiPasCeJour({ clotures, branchId: branch.id, cashbox: box.name, jour, aujourdhui });
 
   /* Ce qui explique l'attendu, ligne par ligne. « Autres mouvements » couvre
@@ -178,7 +225,7 @@ function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisse
   const mouvementsDuJour = derniere && derniere.date === jour ? [] : duJour.moves;
   const base = derniere ? derniere.laisseXof : duJour.startBalance;
   const sommeDuJour = mouvementsDuJour.reduce((s, m) => s + m.delta, 0);
-  const autres = attendu - base - sommeDuJour + enAttente;
+  const autres = attendu - base - sommeDuJour + enAttente - pourboiresAuTiroir;
 
   const [total, setTotal] = useState('');
   const [billets, setBillets] = useState<Record<string, string>>({});
@@ -298,6 +345,12 @@ function Comptage({ box, jour, aujourdhui, moi, role, clotures, expenses, caisse
                 <tr>
                   <td>Dépenses en attente de validation<small>sorties du tiroir, pas encore au livre</small></td>
                   <td>− {f(enAttente)}</td>
+                </tr>
+              )}
+              {pourboiresAuTiroir > 0 && (
+                <tr>
+                  <td>Pourboires gardés au tiroir<small>en espèces, jusqu’à leur remise à l’équipe</small></td>
+                  <td>+ {f(pourboiresAuTiroir)}</td>
                 </tr>
               )}
               {autres !== 0 && (
