@@ -103,8 +103,46 @@ try {
       { membre_id: 'brice', montant_xof: 7000, declare_le: '2026-11-26T14:00:00Z', statut: 'refusee', rdv_id: 'r7' },
       { membre_id: 'brice', montant_xof: 6000, declare_le: '2026-11-25T14:00:00Z', statut: 'a-remettre', rdv_id: 'r8' },
     ];
-    egal('le total du soir : le paiement venu apres l ouverture, les especes du jour non refusees', { encaisseXof: 30000, especesXof: 20000, especesARemettreXof: 12000, seances: 3 },
+    egal('le total du soir : le paiement venu apres l ouverture, les especes du jour non refusees', { encaisseXof: 30000, especesXof: 20000, especesARemettreXof: 12000, autresXof: 0, seances: 3 },
       t.totalDuSoir(rdvsDuSoir, especesDuSoir, 'brice', '2026-11-26'));
+
+    /* LE LOT 2b (26 novembre 2026) : « Autre montant » (Gamme, acompte), payé par KkiaPay. */
+    egal('autre montant : 100 F au moins, un motif connu, une precision pour « autre »', [true, 'montant', 'motif', 'precision', true, 'montant'], [
+      t.autreMontantValide({ montantXof: 15000, motif: 'gamme', precision: '' }).ok,
+      t.autreMontantValide({ montantXof: 99, motif: 'gamme' }).raison,
+      t.autreMontantValide({ montantXof: 15000, motif: 'cadeau' }).raison,
+      t.autreMontantValide({ montantXof: 15000, motif: 'autre', precision: ' a ' }).raison,
+      t.autreMontantValide({ montantXof: 15000, motif: 'autre', precision: 'bon cadeau' }).ok,
+      t.autreMontantValide({ montantXof: 'abc', motif: 'acompte' }).raison,
+    ]);
+    egal('la precision : sans chevron, resserree, quatre-vingts signes au plus', ['huile x', 80], [t.precisionPropre('  huile <x> '), t.precisionPropre('a'.repeat(120)).length]);
+    const idA = t.idDeLAutreMontant(Date.UTC(2026, 10, 26, 12), 123456789);
+    egal('la reference d un autre montant : tpa-, l instant, un hasard ; elle se reconnait', [true, true, false, false],
+      [idA.startsWith(t.PREFIXE_DE_L_AUTRE_MONTANT), t.estUnAutreMontant(idA), t.estUnAutreMontant('reg-abc'), t.estUnAutreMontant(`${idA}<`)]);
+    egal('KkiaPay regle l autre montant : SUCCESS, et au moins le montant (a un franc pres)', [true, true, false, false, false], [
+      t.kkiapayReglaLAutre({ status: 'SUCCESS', amount: 15000 }, 15000), t.kkiapayReglaLAutre({ status: 'success', amount: 14999 }, 15000),
+      t.kkiapayReglaLAutre({ status: 'SUCCESS', amount: 14998 }, 15000), t.kkiapayReglaLAutre({ status: 'FAILED', amount: 15000 }, 15000), t.kkiapayReglaLAutre(null, 15000),
+    ]);
+    const autresDuSoir = [
+      { id: 'tpa-a', membre_id: 'brice', montant_xof: 15000, cree_le: '2026-11-26T12:00:00Z', statut: 'payee' },
+      { id: 'tpa-b', membre_id: 'brice', montant_xof: 5000, cree_le: '2026-11-26T13:00:00Z', statut: 'en-cours' },
+      { id: 'tpa-c', membre_id: 'brice', montant_xof: 9000, cree_le: '2026-11-26T14:00:00Z', statut: 'abandonnee' },
+      { id: 'tpa-d', membre_id: 'awa', montant_xof: 7000, cree_le: '2026-11-26T14:00:00Z', statut: 'payee' },
+      { id: 'tpa-e', membre_id: 'brice', montant_xof: 4000, cree_le: '2026-11-25T14:00:00Z', statut: 'payee' },
+    ];
+    egal('le plafond compte les autres montants prepares ou payes du jour, jamais les abandonnes', ['tpa-a', 'tpa-b'],
+      t.engagementsDesAutres(autresDuSoir, 'brice', '2026-11-26').map((e) => e.rdvId));
+    egal('le total du soir compte les autres montants payes du jour', { encaisseXof: 30000, especesXof: 20000, especesARemettreXof: 12000, autresXof: 15000, seances: 4 },
+      t.totalDuSoir(rdvsDuSoir, especesDuSoir, 'brice', '2026-11-26', autresDuSoir));
+    const regA = new Map([['tpa-b', 'TxRegistre1']]);
+    egal('au Trone : range quand une piece porte la transaction, a ranger sinon ; le registre fait foi si le telephone n a rien confirme', ['range', 'a-ranger', 'a-ranger', 'en-cours', 'abandonnee', 'a-ranger'], [
+      t.etatDeLAutreMontant({ id: 'tpa-a', statut: 'payee', transaction_id: 'TxA' }, new Map(), new Set(['TxA'])).etat,
+      t.etatDeLAutreMontant({ id: 'tpa-a', statut: 'payee', transaction_id: 'TxA' }, new Map(), new Set()).etat,
+      t.etatDeLAutreMontant({ id: 'tpa-b', statut: 'en-cours', transaction_id: null }, regA, new Set()).etat,
+      t.etatDeLAutreMontant({ id: 'tpa-x', statut: 'en-cours', transaction_id: null }, regA, new Set()).etat,
+      t.etatDeLAutreMontant({ id: 'tpa-c', statut: 'abandonnee', transaction_id: null }, regA, new Set()).etat,
+      t.etatDeLAutreMontant({ id: 'tpa-b', statut: 'abandonnee', transaction_id: null }, regA, new Set()).etat,
+    ]);
     egal('ce que le TPE a engage : ses ouvertures du jour et ses especes du jour non refusees', 30000 + 20000 + 9000 + 12000 + 8000,
       t.engageDuJour([...t.engagementsDesOuvertures(rdvsDuSoir, 'brice', '2026-11-26'), ...t.engagementsDesEspeces(especesDuSoir, 'brice', '2026-11-26')]));
     dit('l identifiant d une declaration porte la seance', /^esp-r5-[0-9a-z]+$/.test(t.idDesEspeces('r5', Date.UTC(2026, 10, 26, 12))));
@@ -118,6 +156,12 @@ const FICHIERS = {
   fonction: 'supabase/functions/tpe-de-poche/index.ts',
   migration: 'supabase/migrations/0246_le_tpe_de_poche.sql',
   lot2: 'supabase/migrations/0247_le_tpe_de_poche_lot_2.sql',
+  lot2b: 'supabase/migrations/0248_le_tpe_de_poche_autre_montant.sql',
+  telephoneAppels: 'src/shared/tpe-de-poche-telephone.ts',
+  kkiapayPur: 'src/shared/tpe-kkiapay-pur.ts',
+  kkiapayMagasin: 'src/shared/tpe-kkiapay.ts',
+  reglerLaSeance: 'supabase/functions/regler-la-seance/index.ts',
+  collecteMtn: 'supabase/functions/collecte-mtn/index.ts',
   magasin: 'src/shared/tpe-de-poche.ts',
   telephone: 'src/apps/tpe/App.tsx',
   trone: 'src/apps/trone/routes/vente/TpeDePoche.tsx',
@@ -216,8 +260,11 @@ const controles = [
     casse: (s) => ({ ...s, fonction: sans(s.fonction, "if ((frais as Ligne).updated_at) q = q.eq('updated_at', (frais as Ligne).updated_at);") }),
   },
   {
-    dit: 'AUCUN argent ne s ecrit ici : ni registre, ni versement, ni piece, ni caisse',
-    ok: (s) => !/from\('payments'\)|from\('invoices'\)\.(update|insert|upsert)|versement|cashbox|paidXof\s*:/.test(s.fonction.split('/* ⟨reste-du-rdv⟩ */')[0] + (s.fonction.split('/* ⟨/reste-du-rdv⟩ */')[1] ?? '')),
+    /* Hors du bloc ⟨reste-du-rdv⟩ (une lecture) et du seul geste du lot 2b qui
+       inscrit au REGISTRE un paiement que KkiaPay a confirmé (`autrePaye`,
+       éprouvé à part plus bas). */
+    dit: 'AUCUN argent ne s ecrit ici : ni registre, ni versement, ni piece, ni caisse (sauf le registre d un autre montant confirme par KkiaPay)',
+    ok: (s) => !/from\('payments'\)|from\('invoices'\)\.(update|insert|upsert)|versement|cashbox|paidXof\s*:/.test(sans(s.fonction.split('/* ⟨reste-du-rdv⟩ */')[0] + (s.fonction.split('/* ⟨/reste-du-rdv⟩ */')[1] ?? ''), corpsDe(s.fonction, 'autrePaye') || '@@')),
     casse: (s) => ({ ...s, fonction: s.fonction.replace("return json({ ok: true, jetonDuLien, resteXof: reste });", "await admin.from('payments').insert({});\n  return json({ ok: true, jetonDuLien, resteXof: reste });") }),
   },
   {
@@ -310,7 +357,7 @@ const controles = [
   {
     dit: 'seul un toucher sur le TPE ouvert le garde ouvert ; un code faux n entretient rien',
     ok: (s) => /const touche = \(\) => \{ if \(ouvert\.current\) noteLeToucher\(\); \};/.test(s.telephone)
-      && /ouvert\.current = vue\.k === 'liste' \|\| vue\.k === 'rdv';/.test(s.telephone)
+      && /ouvert\.current = vue\.k === 'liste' \|\| vue\.k === 'rdv' \|\| vue\.k === 'autre';/.test(s.telephone)
       && /setSaisie\(''\);\s*\/\* Un code faux n'ouvre rien, et n'entretient rien\. \*\/\s*oublieLeToucher\(\);/.test(s.telephone),
     casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'const touche = () => { if (ouvert.current) noteLeToucher(); };', 'const touche = () => { noteLeToucher(); };') }),
   },
@@ -349,8 +396,8 @@ const controles = [
   },
   {
     dit: 'lot 2 : le plafond du jour compte les ouvertures ET les especes du TPE',
-    ok: (s) => /return engageDuJour\(\[\.\.\.engagementsDesOuvertures\(rdvs, tpe\.membre_id, leJour\), \.\.\.engagementsDesEspeces\(lesEspeces, tpe\.membre_id, leJour\)\], saufRdvId\);/.test(corpsDe(s.fonction, 'engageAujourdhui')),
-    casse: (s) => ({ ...s, fonction: remplace(s.fonction, ', ...engagementsDesEspeces(lesEspeces, tpe.membre_id, leJour)], saufRdvId);', '], saufRdvId);') }),
+    ok: (s) => /return engageDuJour\(\[\.\.\.engagementsDesOuvertures\(rdvs, tpe\.membre_id, leJour\), \.\.\.engagementsDesEspeces\(lesEspeces, tpe\.membre_id, leJour\)[,\]]/.test(corpsDe(s.fonction, 'engageAujourdhui')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, ', ...engagementsDesEspeces(lesEspeces, tpe.membre_id, leJour), ...engagementsDesAutres(lesAutres, tpe.membre_id, leJour)], saufRdvId);', ', ...engagementsDesAutres(lesAutres, tpe.membre_id, leJour)], saufRdvId);') }),
   },
   {
     dit: 'lot 2 : les especes ne se declarent que si la direction les a ouvertes, sur une seance du jour qui doit encore',
@@ -386,7 +433,7 @@ const controles = [
   },
   {
     dit: 'lot 2 : le jour rend le total du soir, ce qui reste du plafond, et les seances aux especes declarees',
-    ok: (s) => /const total = totalDuSoir\(rdvs, lesEspeces, tpe\.membre_id, leJour\);/.test(corpsDe(s.fonction, 'jour'))
+    ok: (s) => /const total = totalDuSoir\(rdvs, lesEspeces, tpe\.membre_id, leJour, lesAutres\);/.test(corpsDe(s.fonction, 'jour'))
       && /etat: etatAuTpe\(!!piece, reste, enAttente\.has\(r\.id\)\)/.test(corpsDe(s.fonction, 'jour'))
       && /lignes: sortie, \.\.\.enPlus \}\);/.test(corpsDe(s.fonction, 'jour')),
     casse: (s) => ({ ...s, fonction: remplace(s.fonction, 'etat: etatAuTpe(!!piece, reste, enAttente.has(r.id))', 'etat: etatAuTpe(!!piece, reste)') }),
@@ -414,6 +461,91 @@ const controles = [
       && /gesteDuTpe\('especes-permises', \{ branchId: branch\.id, membreId: m\.id, oui \}\)/.test(s.trone)
       && !/from\('tpe_especes'\)\.(update|insert|upsert|delete)/.test(s.trone + s.magasin),
     casse: (s) => ({ ...s, trone: remplace(s.trone, 'onEncaisse={() => { void marqueRecue(encaisse.ligne); }}', '') }),
+  },
+  /* ── LE LOT 2b (26 novembre 2026) : « Autre montant », et le nom de l'employée sur le versement ── */
+  {
+    dit: 'lot 2b : un autre montant se prepare sous les plafonds, valide par la regle, et ne touche que sa table',
+    ok: (s) => {
+      const c = corpsDe(s.fonction, 'autre');
+      return /const v = autreMontantValide\(\{ montantXof: b\.montantXof, motif: b\.motif, precision: b\.precision \}\);\s*if \(!v\.ok\) return json/.test(c)
+        && /const verdict = plafondDuTpe\(v\.montantXof, await engageAujourdhui\(tpe, jourDuTpe\(maintenant\), ''\)\);\s*if \(!verdict\.ok\) return json/.test(c)
+        && /admin\.from\('tpe_autres'\)\.insert\(\{/.test(c) && /statut: 'en-cours',/.test(c)
+        && !/from\('(invoices|appointments|payments|cashboxes)'\)/.test(c);
+    },
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, "const verdict = plafondDuTpe(v.montantXof, await engageAujourdhui(tpe, jourDuTpe(maintenant), ''));", 'const verdict = { ok: true } as any;') }),
+  },
+  {
+    dit: 'lot 2b : le plafond du jour compte aussi les autres montants',
+    ok: (s) => /\.\.\.engagementsDesAutres\(lesAutres, tpe\.membre_id, leJour\)\], saufRdvId\);/.test(corpsDe(s.fonction, 'engageAujourdhui')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, ', ...engagementsDesAutres(lesAutres, tpe.membre_id, leJour)], saufRdvId);', '], saufRdvId);') }),
+  },
+  {
+    dit: 'lot 2b : paye, il n entre au registre qu apres KkiaPay, a son montant, au TPE qui l a prepare ; jamais sur une piece, un rendez-vous ou une caisse',
+    ok: (s) => {
+      const c = corpsDe(s.fonction, 'autrePaye');
+      const i = (x) => c.indexOf(x);
+      return i('ligne.membre_id !== tpe.membre_id || ligne.branch_id !== tpe.branch_id') > 0
+        && i('tx = await demandeAKkiapay(transactionId)') > 0
+        && i('if (!kkiapayReglaLAutre(tx, ligne.montant_xof)) return json(') > i('tx = await demandeAKkiapay(transactionId)')
+        && i("admin.from('payments').insert(") > i('if (!kkiapayReglaLAutre(tx, ligne.montant_xof)) return json(')
+        && /const montant = Math\.round\(Number\(tx\?\.amount \?\? 0\)\);/.test(c) && !/b\.(montant|amount)/.test(c)
+        && /partnerId: id, status: 'success'/.test(c)
+        && /if \(String\(deja\.data\?\.partnerId \?\? ''\) !== id\) return json\(\{ ok: false, raison: 'transaction-deja-prise' \}, 409\);/.test(c)
+        && !/from\('(invoices|appointments|cashboxes)'\)/.test(c);
+    },
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, "  if (!kkiapayReglaLAutre(tx, ligne.montant_xof)) return json({ ok: false, raison: tx ? 'pas-reussie' : 'introuvable' });\n", '') }),
+  },
+  {
+    dit: 'lot 2b : les trois gestes du telephone sont routes, et l abandon ne touche qu un autre montant en cours de ce TPE',
+    ok: (s) => /if \(action === 'autre'\) return await autre\(b\);/.test(s.fonction) && /if \(action === 'autre-paye'\) return await autrePaye\(b\);/.test(s.fonction)
+      && /if \(action === 'autre-abandon'\) return await autreAbandon\(b\);/.test(s.fonction)
+      && /\.eq\('id', id\)\.eq\('membre_id', tpe\.membre_id\)\.eq\('statut', 'en-cours'\);/.test(corpsDe(s.fonction, 'autreAbandon')),
+    casse: (s) => ({ ...s, fonction: remplace(s.fonction, ".eq('id', id).eq('membre_id', tpe.membre_id).eq('statut', 'en-cours');", ".eq('id', id);") }),
+  },
+  {
+    dit: 'lot 2b : la table des autres montants, RLS, lue par la direction seule, une transaction une fois, trois motifs',
+    ok: (s) => /alter table public\.tpe_autres enable row level security;/.test(s.lot2b)
+      && /create policy direction_lit on public\.tpe_autres for select to authenticated\s+using \(public\.est_direction\(\)\);/.test(s.lot2b)
+      && !/for (insert|update|delete|all)/i.test(s.lot2b)
+      && /on public\.tpe_autres \(transaction_id\) where transaction_id is not null;/.test(s.lot2b)
+      && /check \(motif in \('gamme', 'acompte', 'autre'\)\)/.test(s.lot2b) && /check \(montant_xof > 0\)/.test(s.lot2b),
+    casse: (s) => ({ ...s, lot2b: `${s.lot2b}\ncreate policy p on public.tpe_autres for all to authenticated using (true);` }),
+  },
+  {
+    dit: 'lot 2b : le telephone prepare, paie dans la fenetre KkiaPay avec la reference, confirme ; une fenetre fermee abandonne',
+    ok: (s) => {
+      const c = s.telephone.slice(s.telephone.indexOf('const encaisseLAutre = async'));
+      const i = (x) => c.indexOf(x);
+      return i('const p = await prepareLAutreMontant(') > 0
+        && i('await payWithKkiapay({ amountXof: p.montantXof, partnerId: p.id, branchId: t.branchId, rendLaMainALaFermeture: true })') > i('const p = await prepareLAutreMontant(')
+        && i('void abandonneLAutreMontant(t.jeton, p.id);') > 0
+        && i('const c = await confirmeLAutreMontant(t.jeton, p.id, transactionId);') > i('await payWithKkiapay(')
+        && /action: 'autre-paye', jeton, id, transactionId/.test(s.telephoneAppels) && !/montantXof/.test(s.telephoneAppels.slice(s.telephoneAppels.indexOf('export const confirmeLAutreMontant')).split('\n')[0]);
+    },
+    casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'partnerId: p.id, branchId', "partnerId: '', branchId") }),
+  },
+  {
+    dit: 'lot 2b : le Trone liste les autres montants du jour et dit ceux a ranger ; il n ecrit jamais leur table',
+    ok: (s) => /const autres = useLesAutres\(branch\.id\);/.test(s.trone) && /etatDeLAutreMontant\(l, autres\.recuAuRegistre, refsPrises\)/.test(s.trone)
+      && /C’est son paiement/.test(s.trone) && !/from\('tpe_autres'\)\.(update|insert|upsert|delete)/.test(s.trone + s.magasin),
+    casse: (s) => ({ ...s, trone: remplace(s.trone, 'etatDeLAutreMontant(l, autres.recuAuRegistre, refsPrises)', "({ etat: 'range' as const, ref: '' })") }),
+  },
+  {
+    dit: 'lot 2b : au comptoir, « C est son paiement » propose un autre montant du TPE toute la journee (prefixe tpa-)',
+    ok: (s) => /const estUnAutre = cible\.startsWith\(PREFIXE_DE_L_AUTRE_DU_TPE\);\s*if \(cible && !estUnAutre\) return null;/.test(s.kkiapayPur)
+      && /export const PREFIXE_DE_L_AUTRE_DU_TPE = 'tpa-';/.test(s.kkiapayPur) && /export const PREFIXE_DE_L_AUTRE_MONTANT = 'tpa-';/.test(s.pur)
+      && /\.like\('data->>partnerId', `\$\{PREFIXE_DE_L_AUTRE_DU_TPE\}%`\)\.gte\('data->>at', depuisLesAutres\)/.test(s.kkiapayMagasin),
+    casse: (s) => ({ ...s, kkiapayMagasin: remplace(s.kkiapayMagasin, ".gte('data->>at', depuisLesAutres)", ".gte('data->>at', depuis)") }),
+  },
+  {
+    dit: 'lot 2b : le versement d une seance ouverte sur un TPE porte le nom de l employee, par KkiaPay comme par MTN, dans les deux heures',
+    ok: (s) => [s.reglerLaSeance, s.collecteMtn].every((f) => /const FENETRE_DU_TPE_SUR_LE_VERSEMENT_MS = 2 \* 60 \* 60_000;/.test(f)
+      && /return \{ encaissePar: `\$\{nom\} · TPE de poche`, tpe: \{ membreId, nom \} \};/.test(f)
+      && /if \(ecart < -5 \* 60_000 \|\| ecart > FENETRE_DU_TPE_SUR_LE_VERSEMENT_MS\) return null;/.test(f))
+      && /const parLeTpe = leTpeDuReglement\(r\.lienDeReglement, quand\.getTime\(\)\);\s*const v = \{ \.\.\.versementEnLigne\(\{[^}]*\}\), \.\.\.\(parLeTpe \?\? \{\}\) \};/.test(corpsDe(s.reglerLaSeance, 'appliquer'))
+      && /const parLeTpe = leTpeDuReglement\(lien, quand\.getTime\(\)\);/.test(corpsDe(s.collecteMtn, 'poser'))
+      && /const v = \{ \.\.\.versementMtn\(\{[^}]*\}\), \.\.\.\(parLeTpe \?\? \{\}\) \};/.test(corpsDe(s.collecteMtn, 'poser')),
+    casse: (s) => ({ ...s, collecteMtn: remplace(s.collecteMtn, '}), ...(parLeTpe ?? {}) };', '}) };') }),
   },
 ];
 

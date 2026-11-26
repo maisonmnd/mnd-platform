@@ -118,7 +118,7 @@ dit('le serveur MTN lit les taux dans mnd_settings, a la demande, a la pose, et 
   srv.includes('    tauxAjoutePct: (await lesTaux()).ajoutePct,'),
   srv.includes('const frais = fraisDeMtn(c.montant_xof, taux.retenuPct);'),
   srv.includes("frais_xof: fraisDeMtn(c.montant_xof, (await lesTaux()).retenuPct)"),
-  srv.includes("const VERSION = '2026-11-22-a';"),
+  srv.includes("const VERSION = '2026-11-26-a';"),
   compte(srv, 'fraisAjoutesPct: (await lesTaux()).ajoutePct }'),
 ]);
 const fed = sansCommentaires('src/apps/trone/routes/systeme/CarteMndPay.tsx');

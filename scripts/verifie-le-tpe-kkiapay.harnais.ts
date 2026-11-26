@@ -14,7 +14,8 @@ import { readFileSync } from 'node:fs';
 import {
   familleDeTrace, traceSuffit, traceAEcrire, traceDite, ditCeQuiManque, kkiapayCouvre, refKkiapayPlausible,
 } from '../src/shared/trace-du-moyen-pur';
-import { recuDuRegistre, recusAProposer, refsDejaPrises, heureDuRecu, ditLeVerdict, laReferenceSeGarde, identifiantsPossibles } from '../src/shared/tpe-kkiapay-pur';
+import { recuDuRegistre, recusAProposer, refsDejaPrises, heureDuRecu, ditLeVerdict, laReferenceSeGarde, identifiantsPossibles, PREFIXE_DE_L_AUTRE_DU_TPE } from '../src/shared/tpe-kkiapay-pur';
+import { PREFIXE_DE_L_AUTRE_MONTANT } from '../src/shared/tpe-de-poche-pur';
 
 import { MOYEN_CARTE_KKIAPAY } from '../src/shared/choix-du-moyen-pur';
 
@@ -80,6 +81,17 @@ const props = recusAProposer(recus, { maintenantMs: Date.parse('2026-11-22T06:05
 dit('proposés : trois heures, pas déjà pris, de la branche ou sans branche ; le bon montant en tête', ['TxJuste001', 'TxAutre001'], props.map((r) => r.ref));
 dit('le bon montant est marqué', [true, false], props.map((r) => r.juste));
 dit('les références déjà portées par une pièce', ['TxPris0001'], [...pris]);
+/* « AUTRE MONTANT » DU TPE DE POCHE (lot 2b, 26 novembre 2026) : il vise `tpa-…`, aucune pièce ; il se range dans la journée. */
+dit('le préfixe d un autre montant est le même des deux côtés', PREFIXE_DE_L_AUTRE_MONTANT, PREFIXE_DE_L_AUTRE_DU_TPE);
+{
+  const autre = recuDuRegistre(ligne('TxAutre0002', '2026-11-21T20:05:00.000Z', 15000, { partnerId: 'tpa-mif0abcd-00k3x9', motif: 'gamme', precision: 'huile', tpe: { membreId: 'm-1', nom: 'Brice' } }));
+  dit('un autre montant du TPE se lit, avec son motif et l employée', { motif: 'Produit de la Gamme', precision: 'huile', nom: 'Brice' }, autre?.autre);
+  dit('un paiement en ligne avec une autre cible ne se lit toujours pas', null, recuDuRegistre(ligne('TxWeb0002', '2026-11-22T06:04:00.000Z', 15000, { partnerId: 'cc-123' })));
+  const vieux = recuDuRegistre(ligne('TxVieux002', '2026-11-21T20:05:00.000Z', 15000));
+  const p2 = recusAProposer([autre!, vieux!], { maintenantMs: Date.parse('2026-11-22T06:05:00.000Z'), dejaPris: new Set(), montantXof: 15000 });
+  dit('dix heures plus tard : l autre montant se propose encore, le paiement du TPE KkiaPay non', ['TxAutre0002'], p2.map((r) => r.ref));
+  dit('un autre montant de plus d un jour ne se propose plus', [], recusAProposer([autre!], { maintenantMs: Date.parse('2026-11-22T21:00:00.000Z'), dejaPris: new Set() }).map((r) => r.ref));
+}
 dit('l heure se dit à Cotonou', ['7 h 05', '0 h 00'], [heureDuRecu('2026-11-22T06:05:00.000Z'), heureDuRecu('2026-11-21T23:00:00.000Z')]);
 dit('chaque refus de KkiaPay se dit', [true, true, true, true],
   [/ne reconnaît pas cette référence/.test(ditLeVerdict({ ok: false, raison: 'introuvable' })), /non abouti/.test(ditLeVerdict({ ok: false, raison: 'pas-reussie', statut: 'FAILED' })),

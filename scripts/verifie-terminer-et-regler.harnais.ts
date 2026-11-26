@@ -1270,7 +1270,7 @@ const remplisAvantApres = () => {
 };
 const ma = (action: 'avance' | 'apres', rdvId: string, cle = 'jeton.de.awa', ip = '2.2.2.2') => appelle(finir, { action, rdvId }, { cle, ip });
 remplisAvantApres();
-dit('avant-apres : les deux fonctions disent leur version', ['2026-11-17-a · la clé de service comparée à temps constant, son refus au journal en longueurs seules (cle-du-cron) ; le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-11-a'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
+dit('avant-apres : les deux fonctions disent leur version', ['2026-11-17-a · la clé de service comparée à temps constant, son refus au journal en longueurs seules (cle-du-cron) ; le prénom d’usage entier sur le billet (« Merci, Anne-Marie ») ; régler dès maintenant depuis la page du rendez-vous (le billet dit si la porte d’avance est ouverte) ; le billet réglé porte sa facture (PDF) ; Mes RDV jusqu’à douze mois ; régler avant et après', '2026-11-26-a'], [(await appelle(finir)).corps.version, (await appelle(regler)).corps.version]);
 const av1 = await ma('avance', 'rdv-demain');
 const jAv = String(av1.corps.jeton);
 dit('avant-apres serveur : d avance, son compte, son rendez-vous de demain ; le reste du serveur, le lien pose une fois avec sa marque, et RIEN d autre ne bouge (ni statut, ni marque de fin, ni notification)',

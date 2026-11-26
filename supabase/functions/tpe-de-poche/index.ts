@@ -39,6 +39,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
      · `jour` rend en plus le total du soir du TPE et ce qui reste de son
        plafond du jour.
 
+   LE LOT 2b (26 novembre 2026, « construis le lot 2b », Yéman) :
+     · `autre` (le téléphone) — un AUTRE MONTANT (Gamme, acompte, motif),
+       préparé sous les plafonds : une ligne de `tpe_autres` « en-cours »
+       (0248), dont l'identifiant est la référence donnée à KkiaPay ;
+     · `autre-paye` — la cliente a payé dans la fenêtre KkiaPay : la
+       transaction est REDEMANDÉE à KkiaPay (réussie, au moins le montant),
+       puis inscrite au registre `payments` comme le fait kkiapay-tpe, avec
+       son motif et l'employée. Rien sur une pièce, un rendez-vous ou une
+       caisse : le comptoir range la vente, « C'est son paiement » ;
+     · `autre-abandon` — la fenêtre s'est fermée sans paiement.
+   Secrets en plus : KKIAPAY_PUBLIC_KEY, KKIAPAY_PRIVATE_KEY,
+   KKIAPAY_SECRET_KEY (déjà posés pour kkiapay-verify et kkiapay-tpe).
+
    AUCUN ARGENT NE BOUGE ICI. La page « Régler » encaisse ; l'argent ne
    s'écrit qu'à la confirmation de KkiaPay (`regler-la-seance`) ou de MTN
    (`collecte-mtn`), sur les comptes de la Maison, comme avant.
@@ -50,7 +63,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
    Déploiement : `node scripts/mise-en-ligne.mjs fonction tpe-de-poche
    --commit <sha> --jwt non`. Vérifier : un GET rend sa version. */
 
-const VERSION = '2026-11-26-a · le TPE de poche, lot 2 : les plafonds, les especes declarees, le total du soir';
+const VERSION = '2026-11-26-b · le TPE de poche, lot 2b : autre montant (Gamme, acompte) par KkiaPay, au registre';
 
 const SUPABASE_URL = (Deno.env.get('SUPABASE_URL') ?? '').trim();
 const ANON = (Deno.env.get('SUPABASE_ANON_KEY') ?? '').trim();
@@ -243,16 +256,76 @@ export function engagementsDesOuvertures(rdvs: readonly RdvDuTpe[], membreId: st
     .map((r) => ({ rdvId: r.id, montantXof: Number(r.lienDeReglement?.tpe?.montantXof) || 0 }));
 }
 
+/* ── « AUTRE MONTANT » (lot 2b, 26 novembre 2026, « construis le lot 2b ») ──
+   La maquette : « Autre montant sert à un produit de la Gamme ou à un
+   acompte, avec un motif », pour une cliente de passage. Le téléphone le
+   PRÉPARE sous les plafonds, la cliente paie dans la fenêtre KkiaPay, et la
+   transaction confirmée entre au registre. Le comptoir range ensuite la vente
+   ou l'acompte (« C'est son paiement »). */
+export const MOTIFS_DE_L_AUTRE_MONTANT = [
+  { cle: 'gamme', dit: 'Produit de la Gamme' },
+  { cle: 'acompte', dit: 'Acompte d’un rendez-vous' },
+  { cle: 'autre', dit: 'Autre, à expliquer' },
+] as const;
+export type MotifDeLAutreMontant = (typeof MOTIFS_DE_L_AUTRE_MONTANT)[number]['cle'];
+export const motifDit = (m: unknown): string => MOTIFS_DE_L_AUTRE_MONTANT.find((x) => x.cle === m)?.dit ?? 'Autre montant';
+/** Le préfixe de la référence d'un autre montant : il dit au registre et au comptoir d'où vient le paiement. */
+export const PREFIXE_DE_L_AUTRE_MONTANT = 'tpa-';
+export const estUnAutreMontant = (id: unknown): boolean => typeof id === 'string' && /^tpa-[0-9a-z]{4,20}-[0-9a-z]{4,12}$/.test(id);
+/** La référence : l'instant et un hasard, en base 36. */
+export const idDeLAutreMontant = (ms: number, alea: number): string =>
+  `${PREFIXE_DE_L_AUTRE_MONTANT}${Math.max(0, Math.floor(ms)).toString(36)}-${(Math.max(0, Math.floor(alea)) % 2_176_782_336).toString(36).padStart(6, '0')}`;
+/** Le petit texte qui l'accompagne : court, sans balise. */
+export const precisionPropre = (s: unknown): string => String(s ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+/** Un autre montant bien formé : un montant d'au moins 100 F, un motif connu,
+    et une précision quand le motif est « autre ». */
+export type VerdictDeLAutreMontant = { ok: true; montantXof: number; motif: MotifDeLAutreMontant; precision: string } | { ok: false; raison: 'montant' | 'motif' | 'precision' };
+export function autreMontantValide(o: { montantXof?: unknown; motif?: unknown; precision?: unknown }): VerdictDeLAutreMontant {
+  const m = Math.round(Number(o.montantXof));
+  if (!Number.isFinite(m) || m < 100) return { ok: false, raison: 'montant' };
+  const motif = MOTIFS_DE_L_AUTRE_MONTANT.find((x) => x.cle === o.motif)?.cle;
+  if (!motif) return { ok: false, raison: 'motif' };
+  const precision = precisionPropre(o.precision);
+  if (motif === 'autre' && precision.length < 3) return { ok: false, raison: 'precision' };
+  return { ok: true, montantXof: m, motif, precision };
+}
+
+/** La ligne de la table `tpe_autres` (0248), telle que la base la rend. */
+export type StatutDeLAutreMontant = 'en-cours' | 'payee' | 'abandonnee';
+export type LigneDeLAutreMontant = {
+  id: string; branch_id: string; membre_id: string; nom: string; montant_xof: number; motif: string; precision?: string | null;
+  cree_le: string; statut: StatutDeLAutreMontant; transaction_id?: string | null; paye_le?: string | null; frais_xof?: number | null;
+};
+
+/** Les autres montants d'un TPE aujourd'hui, en engagements : préparés ou payés, jamais abandonnés. */
+export function engagementsDesAutres(lignes: readonly Pick<LigneDeLAutreMontant, 'id' | 'montant_xof' | 'membre_id' | 'cree_le' | 'statut'>[], membreId: string, jour: string): EngagementDuTpe[] {
+  return lignes
+    .filter((l) => l && l.membre_id === membreId && l.statut !== 'abandonnee' && jourDuTpe(Date.parse(l.cree_le)) === jour)
+    .map((l) => ({ rdvId: l.id, montantXof: l.montant_xof }));
+}
+
+/** Le paiement de KkiaPay règle-t-il cet autre montant ? Réussi, et au moins
+    le montant préparé (à un franc près). */
+export const kkiapayReglaLAutre = (tx: { status?: unknown; amount?: unknown } | null | undefined, montantXof: number): boolean =>
+  !!tx && String(tx.status ?? '').toUpperCase() === 'SUCCESS' && Math.round(Number(tx.amount ?? 0)) + 1 >= Math.round(Number(montantXof) || 0);
+
 /** LE TOTAL DU SOIR d'un TPE : ce que KkiaPay ou MTN ont confirmé sur les
-    séances qu'il a ouvertes (le dernier paiement, venu après l'ouverture), et
-    les espèces déclarées (à remettre ou reçues). */
-export type TotalDuSoir = { encaisseXof: number; especesXof: number; especesARemettreXof: number; seances: number };
+    séances qu'il a ouvertes (le dernier paiement, venu après l'ouverture), les
+    espèces déclarées (à remettre ou reçues), et ses autres montants payés. */
+export type TotalDuSoir = { encaisseXof: number; especesXof: number; especesARemettreXof: number; autresXof: number; seances: number };
 export function totalDuSoir(
   rdvs: readonly RdvDuTpe[],
   especes: readonly Pick<LigneDesEspeces, 'montant_xof' | 'membre_id' | 'declare_le' | 'statut'>[],
   membreId: string, jour: string,
+  autres: readonly Pick<LigneDeLAutreMontant, 'montant_xof' | 'membre_id' | 'cree_le' | 'statut'>[] = [],
 ): TotalDuSoir {
-  let encaisseXof = 0; let especesXof = 0; let especesARemettreXof = 0; let seances = 0;
+  let encaisseXof = 0; let especesXof = 0; let especesARemettreXof = 0; let autresXof = 0; let seances = 0;
+  for (const a of autres) {
+    if (!a || a.membre_id !== membreId || a.statut !== 'payee' || jourDuTpe(Date.parse(a.cree_le)) !== jour) continue;
+    autresXof += Math.max(0, Math.round(Number(a.montant_xof) || 0));
+    seances += 1;
+  }
   for (const r of rdvs) {
     const t = r?.lienDeReglement?.tpe;
     if (!t || t.membreId !== membreId || jourDuTpe(Date.parse(String(t.le))) !== jour) continue;
@@ -270,7 +343,7 @@ export function totalDuSoir(
     if (e.statut === 'a-remettre') especesARemettreXof += m;
     seances += 1;
   }
-  return { encaisseXof, especesXof, especesARemettreXof, seances };
+  return { encaisseXof, especesXof, especesARemettreXof, autresXof, seances };
 }
 /* ⟨/tpe-de-poche⟩ */
 
@@ -583,11 +656,14 @@ async function jour(b: any) {
   if (error) throw new Error(error.message);
   const rdvs = rdvsDuJourAuTpe(((lignes ?? []) as Ligne[]).map((l) => ({ ...(l.data ?? {}), id: l.id }) as RdvDuTpe), leJour);
   /* LE LOT 2 : les espèces déclarées aujourd'hui, le total du soir, et ce qui reste du plafond du jour. */
-  const lesEspeces = await lesEspecesDuJour(String(tpe.branch_id), leJour);
+  const [lesEspeces, lesAutres] = await Promise.all([lesEspecesDuJour(String(tpe.branch_id), leJour), lesAutresDuJour(String(tpe.branch_id), leJour)]);
   const enAttente = new Set(lesEspeces.filter((e) => e.statut === 'a-remettre').map((e) => e.rdv_id));
-  const total = totalDuSoir(rdvs, lesEspeces, tpe.membre_id, leJour);
-  const engage = engageDuJour([...engagementsDesOuvertures(rdvs, tpe.membre_id, leJour), ...engagementsDesEspeces(lesEspeces, tpe.membre_id, leJour)]);
-  const enPlus = { especes: tpe.especes === true, total, resteDuJourXof: Math.max(0, PLAFOND_PAR_JOUR_XOF - engage), plafondParPaiementXof: PLAFOND_PAR_PAIEMENT_XOF };
+  const total = totalDuSoir(rdvs, lesEspeces, tpe.membre_id, leJour, lesAutres);
+  const engage = engageDuJour([...engagementsDesOuvertures(rdvs, tpe.membre_id, leJour), ...engagementsDesEspeces(lesEspeces, tpe.membre_id, leJour), ...engagementsDesAutres(lesAutres, tpe.membre_id, leJour)]);
+  /* Ses autres montants du jour, pour la liste du téléphone : l'heure, le montant, le motif, l'état. */
+  const autres = lesAutres.filter((a) => a.membre_id === tpe.membre_id && a.statut !== 'abandonnee')
+    .map((a) => ({ id: a.id, le: a.cree_le, montantXof: a.montant_xof, motif: motifDit(a.motif), precision: a.precision ?? '', statut: a.statut }));
+  const enPlus = { especes: tpe.especes === true, total, resteDuJourXof: Math.max(0, PLAFOND_PAR_JOUR_XOF - engage), plafondParPaiementXof: PLAFOND_PAR_PAIEMENT_XOF, autres };
   if (rdvs.length === 0) return json({ ok: true, nom: tpe.nom, jour: leJour, lignes: [], ...enPlus });
   const ids = rdvs.map((r) => r.id);
   const clientIds = [...new Set(rdvs.map((r) => String(r.clientId ?? '')).filter(Boolean))];
@@ -624,15 +700,24 @@ async function lesEspecesDuJour(branchId: string, leJour: string): Promise<Ligne
   return (data ?? []) as LigneDesEspeces[];
 }
 
-/** Ce qu'un TPE a engagé aujourd'hui (séances ouvertes, espèces déclarées), une séance mise à part. */
+/** Les autres montants préparés aujourd'hui dans une branche (lot 2b). */
+async function lesAutresDuJour(branchId: string, leJour: string): Promise<LigneDeLAutreMontant[]> {
+  const { data, error } = await admin.from('tpe_autres').select('*').eq('branch_id', branchId)
+    .gte('cree_le', `${leJour}T00:00:00+01:00`).limit(500);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as LigneDeLAutreMontant[];
+}
+
+/** Ce qu'un TPE a engagé aujourd'hui (séances ouvertes, espèces déclarées, autres montants), une séance mise à part. */
 async function engageAujourdhui(tpe: LigneDuTpe, leJour: string, saufRdvId: string): Promise<number> {
-  const [{ data: lignes, error }, lesEspeces] = await Promise.all([
+  const [{ data: lignes, error }, lesEspeces, lesAutres] = await Promise.all([
     admin.from('appointments').select('id,data').eq('branch_id', tpe.branch_id).eq('data->>date', leJour).limit(500),
     lesEspecesDuJour(String(tpe.branch_id), leJour),
+    lesAutresDuJour(String(tpe.branch_id), leJour),
   ]);
   if (error) throw new Error(error.message);
   const rdvs = ((lignes ?? []) as { id: string; data: any }[]).map((l) => ({ ...(l.data ?? {}), id: l.id }) as RdvDuTpe);
-  return engageDuJour([...engagementsDesOuvertures(rdvs, tpe.membre_id, leJour), ...engagementsDesEspeces(lesEspeces, tpe.membre_id, leJour)], saufRdvId);
+  return engageDuJour([...engagementsDesOuvertures(rdvs, tpe.membre_id, leJour), ...engagementsDesEspeces(lesEspeces, tpe.membre_id, leJour), ...engagementsDesAutres(lesAutres, tpe.membre_id, leJour)], saufRdvId);
 }
 
 /** Le rendez-vous du jour qu'un TPE peut toucher, sa pièce et son reste ; ou la raison du refus. */
@@ -777,6 +862,102 @@ async function especesTraitees(b: any, qui: string) {
   return json({ ok: true, statut: b.statut });
 }
 
+/* ── « AUTRE MONTANT » (lot 2b) ── */
+const KKIA_BASE = Deno.env.get('KKIAPAY_API_BASE') ?? 'https://api.kkiapay.me';
+const KKIA_VERIFY_PATH = '/api/v1/transactions/status';
+type KkiaTransaction = { status?: string; amount?: number; fees?: number; source?: string };
+/** KkiaPay, par la même route que kkiapay-verify et kkiapay-tpe. Null : KkiaPay ne la connaît pas ; lance s'il ne répond pas. */
+async function demandeAKkiapay(transactionId: string): Promise<KkiaTransaction | null> {
+  const res = await fetch(`${KKIA_BASE}${KKIA_VERIFY_PATH}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': Deno.env.get('KKIAPAY_PUBLIC_KEY') ?? '',
+      'x-private-key': Deno.env.get('KKIAPAY_PRIVATE_KEY') ?? '',
+      'x-secret-key': Deno.env.get('KKIAPAY_SECRET_KEY') ?? '',
+    },
+    body: JSON.stringify({ transactionId }),
+  });
+  if (res.status >= 400 && res.status < 500) return null;
+  if (!res.ok) throw new Error(`upstream_${res.status}`);
+  return (await res.json()) as KkiaTransaction;
+}
+
+/** Le téléphone prépare un autre montant, sous les plafonds : sa référence pour KkiaPay. */
+async function autre(b: any) {
+  const tpe = await leTpeDuJeton(b.jeton);
+  if (!tpe) return json({ ok: false, raison: 'coupe' }, 401);
+  const v = autreMontantValide({ montantXof: b.montantXof, motif: b.motif, precision: b.precision });
+  if (!v.ok) return json({ ok: false, raison: v.raison }, 400);
+  const maintenant = Date.now();
+  const verdict = plafondDuTpe(v.montantXof, await engageAujourdhui(tpe, jourDuTpe(maintenant), ''));
+  if (!verdict.ok) return json({ ok: false, raison: verdict.raison, resteDuJourXof: verdict.resteDuJourXof });
+  const id = idDeLAutreMontant(maintenant, crypto.getRandomValues(new Uint32Array(1))[0]);
+  const { error } = await admin.from('tpe_autres').insert({
+    id, branch_id: tpe.branch_id, membre_id: tpe.membre_id, nom: tpe.nom, montant_xof: v.montantXof, motif: v.motif,
+    precision: v.precision || null, cree_le: new Date(maintenant).toISOString(), statut: 'en-cours',
+  });
+  if (error) throw new Error(error.message);
+  return json({ ok: true, id, montantXof: v.montantXof, branchId: tpe.branch_id });
+}
+
+/** Payé dans la fenêtre KkiaPay : la transaction redemandée à KkiaPay, puis au registre (jamais sur une pièce). */
+async function autrePaye(b: any) {
+  const tpe = await leTpeDuJeton(b.jeton);
+  if (!tpe) return json({ ok: false, raison: 'coupe' }, 401);
+  const id = String(b.id ?? '');
+  const transactionId = String(b.transactionId ?? '').trim();
+  if (!estUnAutreMontant(id) || !/^[A-Za-z0-9_-]{6,64}$/.test(transactionId)) return json({ ok: false, raison: 'mal-forme' }, 400);
+  const { data: l, error } = await admin.from('tpe_autres').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  const ligne = (l as LigneDeLAutreMontant | null) ?? null;
+  if (!ligne || ligne.membre_id !== tpe.membre_id || ligne.branch_id !== tpe.branch_id) return json({ ok: false, raison: 'introuvable' }, 404);
+  if (ligne.statut === 'payee') return json({ ok: true, deja: true, montantXof: ligne.montant_xof });
+  let tx: KkiaTransaction | null = null;
+  try { tx = await demandeAKkiapay(transactionId); } catch { return json({ ok: false, raison: 'injoignable' }); }
+  /* LE MONTANT ET LE STATUT VIENNENT DE KKIAPAY, jamais du téléphone. */
+  if (!kkiapayReglaLAutre(tx, ligne.montant_xof)) return json({ ok: false, raison: tx ? 'pas-reussie' : 'introuvable' });
+  const montant = Math.round(Number(tx?.amount ?? 0));
+  const frais = Math.max(0, Math.round(Number(tx?.fees ?? 0)));
+  const enPlus = { origine: 'tpe-de-poche', motif: ligne.motif, precision: ligne.precision || undefined, tpe: { membreId: tpe.membre_id, nom: tpe.nom } };
+  /* LE REGISTRE : une transaction y entre une fois. Déjà là (le filet de KkiaPay l'a posée), elle doit viser CET autre montant. */
+  const { data: deja, error: ed } = await admin.from('payments').select('data').eq('id', transactionId).maybeSingle();
+  if (ed) throw new Error(ed.message);
+  if (deja) {
+    if (String(deja.data?.partnerId ?? '') !== id) return json({ ok: false, raison: 'transaction-deja-prise' }, 409);
+    const { error: em } = await admin.from('payments').update({ data: { ...(deja.data ?? {}), ...enPlus } }).eq('id', transactionId);
+    if (em) throw new Error(em.message);
+  } else {
+    const { error: ei } = await admin.from('payments').insert({
+      id: transactionId, branch_id: tpe.branch_id,
+      data: {
+        id: transactionId, branchId: tpe.branch_id, provider: 'kkiapay', amountXof: montant, feesXof: frais, method: tx?.source || undefined,
+        partnerId: id, status: 'success', at: new Date().toISOString(), inscritPar: 'tpe-de-poche', ...enPlus,
+      },
+    });
+    if (ei && ei.code !== '23505') throw new Error(ei.message);
+  }
+  const { error: eu } = await admin.from('tpe_autres').update({ statut: 'payee', transaction_id: transactionId, paye_le: new Date().toISOString(), frais_xof: frais })
+    .eq('id', id).neq('statut', 'payee');
+  if (eu) {
+    if (eu.code === '23505') return json({ ok: false, raison: 'transaction-deja-prise' }, 409);
+    throw new Error(eu.message);
+  }
+  return json({ ok: true, montantXof: ligne.montant_xof });
+}
+
+/** La fenêtre s'est fermée sans paiement : l'autre montant ne compte plus au plafond. */
+async function autreAbandon(b: any) {
+  const tpe = await leTpeDuJeton(b.jeton);
+  if (!tpe) return json({ ok: false, raison: 'coupe' }, 401);
+  const id = String(b.id ?? '');
+  if (!estUnAutreMontant(id)) return json({ ok: false, raison: 'mal-forme' }, 400);
+  const { error } = await admin.from('tpe_autres').update({ statut: 'abandonnee' })
+    .eq('id', id).eq('membre_id', tpe.membre_id).eq('statut', 'en-cours');
+  if (error) throw new Error(error.message);
+  return json({ ok: true });
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') return json({ fonction: 'tpe-de-poche', ok: true, service: SERVICE.length > 0 });
@@ -789,6 +970,9 @@ Deno.serve(async (req) => {
     if (action === 'jour') return await jour(b);
     if (action === 'ouvrir') return await ouvrir(b);
     if (action === 'especes') return await especes(b);
+    if (action === 'autre') return await autre(b);
+    if (action === 'autre-paye') return await autrePaye(b);
+    if (action === 'autre-abandon') return await autreAbandon(b);
     if (action === 'especes-permises' || action === 'especes-traitees') {
       const qui = await laDirection(req);
       if (!qui) return json({ ok: false, raison: 'refusee' }, 403);

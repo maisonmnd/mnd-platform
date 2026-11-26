@@ -197,6 +197,8 @@ function ChampsDuTpe({ t, pose, branchId, montantXof, id }: {
                 {heureDuRecu(r.at)}{' · '}<b style={{ color: 'var(--color-indigo)', fontWeight: 600 }}>{fmtMoney(r.montantXof, 'XOF')}</b>
                 {r.fraisXof > 0 && <>{' (+ '}{fmtMoney(r.fraisXof, 'XOF')} de frais)</>}
                 {r.juste && <span style={{ color: 'var(--ink-soft)' }}>{' · le montant de la part'}</span>}
+                {/* « Autre montant » d'un TPE de poche (lot 2b) : qui l'a encaissé, et pour quoi. */}
+                {r.autre && <span data-recu-autre="" style={{ color: 'var(--ink-soft)' }}>{' · '}{r.autre.nom ? `TPE de ${r.autre.nom}, ` : 'TPE de poche, '}{r.autre.motif.toLowerCase()}{r.autre.precision ? ` (${r.autre.precision})` : ''}</span>}
               </span>
               <Button size="sm" variant={r.juste ? 'copper' : 'ghost'} onClick={() => {
                 pose({ kkiapay: { ref: r.ref, montantXof: r.montantXof, fraisXof: r.fraisXof, ...(r.source ? { source: r.source } : {}), verifieeLe: new Date().toISOString(), choisi: true } });

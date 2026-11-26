@@ -6,8 +6,10 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useBranch } from '../../../../shared/branches';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { prenomDUsage } from '../../../../shared/civilite';
-import { CHEMIN_DU_TERMINAL, adresseDActivation, codeDuTpeDit, etatDuTpe, jourDuTpe, type EtatDuTpe, type LigneDesEspeces, type LigneDuTpe, type MarqueDuTpe } from '../../../../shared/tpe-de-poche-pur';
-import { gesteDuTpe, useLesEspeces, useLesTpe } from '../../../../shared/tpe-de-poche';
+import { CHEMIN_DU_TERMINAL, adresseDActivation, codeDuTpeDit, etatDeLAutreMontant, etatDuTpe, jourDuTpe, motifDit, type EtatDeLAutreMontant, type EtatDuTpe, type LigneDesEspeces, type LigneDuTpe, type MarqueDuTpe } from '../../../../shared/tpe-de-poche-pur';
+import { gesteDuTpe, useLesAutres, useLesEspeces, useLesTpe } from '../../../../shared/tpe-de-poche';
+import { useInvoices } from '../../../../shared/finance';
+import { refsDejaPrises } from '../../../../shared/tpe-kkiapay-pur';
 import { PayAppointmentModal } from '../clients/actions';
 import { useStaff } from '../equipe/data';
 
@@ -53,6 +55,14 @@ const RAISON_DITE: Record<string, string> = {
 };
 const raisonDite = (r?: string): string => RAISON_DITE[r ?? ''] ?? 'La Maison ne répond pas. Réessayez dans un instant.';
 
+/* « AUTRE MONTANT » (lot 2b) : ce que l'écran dit de chaque état. */
+const ETAT_DE_L_AUTRE_DIT: Record<EtatDeLAutreMontant, string> = {
+  range: 'Rangé',
+  'a-ranger': 'Reçu · à ranger',
+  'en-cours': 'En cours',
+  abandonnee: 'Abandonné',
+};
+
 type CodeAffiche = { membreId: string; code: string; expireLe: string };
 
 export default function TpeDePoche() {
@@ -62,6 +72,10 @@ export default function TpeDePoche() {
   const { lignes, lu, erreur, relis } = useLesTpe(branch.id);
   /* LES ESPÈCES (lot 2, 26 novembre 2026) : déclarées sur un TPE, reçues ici le soir. */
   const especes = useLesEspeces(branch.id);
+  /* LES AUTRES MONTANTS (lot 2b) : la Gamme, un acompte, payés par KkiaPay sur un TPE ; rangés au comptoir. */
+  const autres = useLesAutres(branch.id);
+  const [pieces] = useInvoices();
+  const refsPrises = useMemo(() => refsDejaPrises(pieces), [pieces]);
   const [encaisse, setEncaisse] = useState<{ ligne: LigneDesEspeces; rdv: Appointment } | null>(null);
   const [refus, setRefus] = useState<string | null>(null);
   const [code, setCode] = useState<CodeAffiche | null>(null);
@@ -150,11 +164,17 @@ export default function TpeDePoche() {
   const traiteesDuJour = especes.lignes.filter((e) => e.statut !== 'a-remettre' && jourDuTpe(Date.parse(e.declare_le)) === aujourdhui);
   const especesRecuesDuJour = traiteesDuJour.filter((e) => e.statut === 'recue').reduce((s, e) => s + (Number(e.montant_xof) || 0), 0);
   const especesARemettre = aRemettre.reduce((s, e) => s + (Number(e.montant_xof) || 0), 0);
+  const autresDuJour = autres.lignes
+    .filter((l) => jourDuTpe(Date.parse(l.cree_le)) === aujourdhui)
+    .map((l) => ({ l, ...etatDeLAutreMontant(l, autres.recuAuRegistre, refsPrises) }));
+  const autresRecus = autresDuJour.filter((x) => x.etat === 'range' || x.etat === 'a-ranger');
+  const autresRecusXof = autresRecus.reduce((s, x) => s + (Number(x.l.montant_xof) || 0), 0);
+  const autresARanger = autresDuJour.filter((x) => x.etat === 'a-ranger').length;
   const totalDuJour = journal.reduce((s, { a, tpe }) => {
     if (!regleApres(a, tpe)) return s;
     const dernier = [...(a.payments ?? [])].pop();
     return s + (Number(dernier?.amountXof) || 0);
-  }, 0);
+  }, 0) + autresRecusXof;
 
   return (
     <div className="mnd-rise" style={{ display: 'grid', gap: 16 }}>
@@ -259,6 +279,34 @@ export default function TpeDePoche() {
               </div>
             ))}
             <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-soft)' }}>L’employée déclare les billets reçus sur son TPE ; rien ne s’inscrit sur la facture avant que vous les receviez ici. « Reçu · encaisser » ouvre l’encaissement de la séance, en espèces, dans la caisse que vous choisissez.</p>
+          </div>
+        </Card>
+      )}
+
+      {autresDuJour.length > 0 && (
+        <Card>
+          <div style={{ display: 'grid', gap: 10 }} data-tpe-autres="">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 24 }}>Autres montants du jour</h3>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 26 }}>{fmtMoney(autresRecusXof, currency)}</span>
+            </div>
+            {autresDuJour.map(({ l, etat, ref }) => (
+              <div key={l.id} data-tpe-autre={l.id} style={{ display: 'grid', gridTemplateColumns: '52px minmax(0, 1fr) auto', gap: '2px 10px', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--hairline)', ...(etat === 'abandonnee' ? { color: 'var(--ink-soft)' } : {}) }}>
+                <span style={{ fontSize: 12.5, color: 'var(--ink-soft)' }}>{heureDe(l.paye_le ?? l.cree_le)}</span>
+                <span style={{ minWidth: 0, display: 'grid' }}>
+                  <b style={{ fontWeight: 500 }}>{motifDit(l.motif)}{l.precision ? ` · ${l.precision}` : ''}</b>
+                  <span style={{ fontSize: 12, color: 'var(--ink-soft)' }}>par {l.nom}, sur son TPE{ref ? ` · réf. KkiaPay ${ref}` : ''}</span>
+                </span>
+                <span style={{ textAlign: 'right', display: 'grid', justifyItems: 'end', gap: 3 }}>
+                  <b style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: 19 }}>{fmtMoney(Number(l.montant_xof) || 0, currency)}</b>
+                  <Badge tone={etat === 'range' ? 'solid' : 'copper'}>{ETAT_DE_L_AUTRE_DIT[etat]}</Badge>
+                </span>
+              </div>
+            ))}
+            <p style={{ margin: 0, fontSize: 12.5, color: 'var(--ink-soft)' }}>
+              {autresARanger > 0 ? `${autresARanger === 1 ? 'Un paiement attend' : `${autresARanger} paiements attendent`} sa pièce. ` : ''}
+              L’argent est déjà sur les comptes de la Maison ; rien ne s’inscrit sur une facture tant que vous ne le rangez pas. Au comptoir, encaissez la vente de la Gamme ou l’acompte avec le moyen KkiaPay, et touchez « C’est son paiement » sur la ligne qui porte le nom de l’employée.
+            </p>
           </div>
         </Card>
       )}

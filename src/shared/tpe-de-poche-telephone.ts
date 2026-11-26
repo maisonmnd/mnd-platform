@@ -17,7 +17,11 @@ export type ReponseDuTpe = {
   jetonDuLien?: string; resteXof?: number;
   /* Le lot 2 (26 novembre 2026) : les espèces, le total du soir, les plafonds. */
   especes?: boolean; total?: TotalDuSoir; resteDuJourXof?: number; plafondParPaiementXof?: number; montantXof?: number; deja?: boolean;
+  /* Le lot 2b : « Autre montant ». */
+  id?: string; autres?: AutreDuJour[];
 };
+/** Un autre montant du jour, tel que le téléphone le liste. */
+export type AutreDuJour = { id: string; le: string; montantXof: number; motif: string; precision?: string; statut: string };
 
 async function appel(corps: Record<string, unknown>): Promise<ReponseDuTpe> {
   if (!URL_PROJET) return { ok: false, raison: 'hors-ligne' };
@@ -39,6 +43,10 @@ export const lisLeJourDuTpe = (jeton: string) => appel({ action: 'jour', jeton }
 export const ouvreLeRdvAuTpe = (jeton: string, rdvId: string) => appel({ action: 'ouvrir', jeton, rdvId });
 /** Le lot 2 : l'employée déclare les billets reçus pour une séance (à remettre le soir). */
 export const declareLesEspeces = (jeton: string, rdvId: string) => appel({ action: 'especes', jeton, rdvId });
+/** Le lot 2b : préparer un autre montant, puis le dire payé (KkiaPay le confirme au serveur), ou abandonné. */
+export const prepareLAutreMontant = (jeton: string, montantXof: number, motif: string, precision: string) => appel({ action: 'autre', jeton, montantXof, motif, precision });
+export const confirmeLAutreMontant = (jeton: string, id: string, transactionId: string) => appel({ action: 'autre-paye', jeton, id, transactionId });
+export const abandonneLAutreMontant = (jeton: string, id: string) => appel({ action: 'autre-abandon', jeton, id });
 
 /* ── CE QUE LE TÉLÉPHONE GARDE ──
    Le jeton (il ne revient jamais du serveur une seconde fois) et l'empreinte

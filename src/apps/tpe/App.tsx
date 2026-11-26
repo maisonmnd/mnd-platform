@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { asset } from '../../shared/asset';
 import { QrSvg } from '../../ds/qr';
-import { PLAFOND_PAR_JOUR_XOF, codeDuTpePropre, estUnCodeDuTpe, tpeAVerrouiller, type LigneDuJourAuTpe, type TotalDuSoir } from '../../shared/tpe-de-poche-pur';
 import {
-  activeLeTelephone, declareLesEspeces, dernierToucher, empreinteDuSecret, gardeLeTpe, lisLeJourDuTpe, lisLeTpeGarde, nomDuTelephone,
+  MOTIFS_DE_L_AUTRE_MONTANT, PLAFOND_PAR_JOUR_XOF, codeDuTpePropre, estUnCodeDuTpe, tpeAVerrouiller,
+  type LigneDuJourAuTpe, type MotifDeLAutreMontant, type TotalDuSoir,
+} from '../../shared/tpe-de-poche-pur';
+import { estUneFenetreFermee, estUnePanneDeKkiapay, kkiapayPeutSOuvrir, payWithKkiapay } from '../../shared/kkiapay-widget';
+import {
+  abandonneLAutreMontant, activeLeTelephone, confirmeLAutreMontant, declareLesEspeces, dernierToucher, empreinteDuSecret, gardeLeTpe, lisLeJourDuTpe, lisLeTpeGarde, nomDuTelephone,
+  prepareLAutreMontant, type AutreDuJour,
   noteLeToucher, oublieLeToucher, ouvreLeRdvAuTpe, secretJuste, type TpeGarde,
 } from '../../shared/tpe-de-poche-telephone';
 
@@ -147,6 +152,7 @@ type Vue =
   | { k: 'verrou' }
   | { k: 'liste' }
   | { k: 'rdv'; ligne: LigneDuJourAuTpe; erreur?: string; enCours?: boolean; qr?: string; especes?: 'confirmer' | 'fait'; montantXof?: number }
+  | { k: 'autre'; montant: string; motif: MotifDeLAutreMontant; precision: string; erreur?: string; enCours?: boolean; fait?: number }
   | { k: 'coupe' };
 
 const RELECTURE_MS = 20_000;
@@ -169,6 +175,13 @@ const RAISON_DITE: Record<string, string> = {
   'plafond-jour': 'Le plafond du jour de ce TPE est atteint : cette séance se règle au comptoir.',
   'especes-fermees': 'Ce TPE ne prend pas les espèces. La direction peut les ouvrir au Trône.',
   especes: 'Des espèces sont déjà déclarées pour cette séance : la direction les attend ce soir.',
+  /* Le lot 2b : « Autre montant » */
+  montant: 'Un montant d’au moins 100 F.',
+  motif: 'Choisissez le motif.',
+  precision: 'Dites en quelques mots ce que c’est.',
+  'pas-reussie': 'KkiaPay ne confirme pas encore ce paiement. S’il est passé, la direction le retrouve au comptoir.',
+  'transaction-deja-prise': 'Ce paiement KkiaPay sert déjà ailleurs.',
+  injoignable: 'KkiaPay ne répond pas. Réessayez dans un instant.',
   reglee: 'Cette séance est déjà réglée.',
   introuvable: 'Ce rendez-vous n’est plus dans la journée.',
   ecriture: 'Le Trône écrivait ce rendez-vous au même instant. Réessayez.',
@@ -177,6 +190,13 @@ const RAISON_DITE: Record<string, string> = {
   panne: 'La Maison ne répond pas. Réessayez dans un instant.',
 };
 const raisonDite = (r?: string): string => RAISON_DITE[r ?? ''] ?? 'La Maison ne répond pas. Réessayez dans un instant.';
+/** « 14 h 05 », à l'heure de Cotonou. */
+const heureLocale = (iso: string): string => {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return '';
+  const d = new Date(t + 3_600_000);
+  return `${d.getUTCHours()} h ${String(d.getUTCMinutes()).padStart(2, '0')}`;
+};
 /** Le refus, et pour le plafond du jour, ce qui en reste. */
 const raisonDuRefus = (r?: string, resteDuJourXof?: number): string =>
   r === 'plafond-jour' && typeof resteDuJourXof === 'number'
@@ -214,7 +234,7 @@ export default function App() {
   });
   const [saisie, setSaisie] = useState('');
   const [erreurs, setErreurs] = useState(0);
-  const [jour, setJour] = useState<{ jour?: string; lignes: LigneDuJourAuTpe[]; lu: boolean; erreur?: string; especes?: boolean; total?: TotalDuSoir; resteDuJourXof?: number }>({ lignes: [], lu: false });
+  const [jour, setJour] = useState<{ jour?: string; lignes: LigneDuJourAuTpe[]; lu: boolean; erreur?: string; especes?: boolean; total?: TotalDuSoir; resteDuJourXof?: number; autres?: AutreDuJour[] }>({ lignes: [], lu: false });
   const activationLancee = useRef(false);
   const [invitation, setInvitation] = useState<InvitationAInstaller | null>(null);
 
@@ -234,14 +254,14 @@ export default function App() {
      code, même faux, se notait comme une activité ; la page rouverte dans les
      deux minutes croyait alors le TPE en main et sautait le code. */
   const ouvert = useRef(false);
-  useEffect(() => { ouvert.current = vue.k === 'liste' || vue.k === 'rdv'; }, [vue.k]);
+  useEffect(() => { ouvert.current = vue.k === 'liste' || vue.k === 'rdv' || vue.k === 'autre'; }, [vue.k]);
   useEffect(() => {
     const touche = () => { if (ouvert.current) noteLeToucher(); };
     window.addEventListener('pointerdown', touche);
     window.addEventListener('keydown', touche);
     const minuterie = setInterval(() => {
       setVue((v) => {
-        if ((v.k === 'liste' || v.k === 'rdv') && tpeAVerrouiller(dernierToucher(), Date.now())) {
+        if ((v.k === 'liste' || v.k === 'rdv' || v.k === 'autre') && !(v.k === 'autre' && v.enCours) && tpeAVerrouiller(dernierToucher(), Date.now())) {
           ouvert.current = false;
           oublieLeToucher();
           return { k: 'verrou' };
@@ -290,7 +310,7 @@ export default function App() {
     const r = await lisLeJourDuTpe(t.jeton);
     if (r.raison === 'coupe') { coupe(); return; }
     if (!r.ok) { setJour((j) => ({ ...j, lu: true, erreur: raisonDite(r.raison) })); return; }
-    setJour({ jour: r.jour, lignes: r.lignes ?? [], lu: true, especes: r.especes === true, total: r.total, resteDuJourXof: r.resteDuJourXof });
+    setJour({ jour: r.jour, lignes: r.lignes ?? [], lu: true, especes: r.especes === true, total: r.total, resteDuJourXof: r.resteDuJourXof, autres: r.autres ?? [] });
   }, [coupe]);
   useEffect(() => {
     if (vue.k !== 'liste' && vue.k !== 'rdv') return;
@@ -356,6 +376,34 @@ export default function App() {
     if (!r.ok) { setVue({ k: 'rdv', ligne, erreur: raisonDuRefus(r.raison, r.resteDuJourXof) }); return; }
     noteLeToucher();
     setVue({ k: 'rdv', ligne, especes: 'fait', montantXof: Number(r.montantXof) || Number(ligne.resteXof) || 0 });
+    void relis();
+  };
+
+  /* ── « AUTRE MONTANT » (lot 2b) : préparé sous les plafonds, payé dans la fenêtre KkiaPay,
+     confirmé par KkiaPay au serveur, rangé au comptoir. ── */
+  const encaisseLAutre = async (v: Extract<Vue, { k: 'autre' }>) => {
+    const t = lisLeTpeGarde();
+    if (!t) { setVue({ k: 'activation', code: '' }); return; }
+    setVue({ ...v, enCours: true, erreur: undefined });
+    const p = await prepareLAutreMontant(t.jeton, Math.round(Number(v.montant.replace(/\D/g, ''))), v.motif, v.precision);
+    if (p.raison === 'coupe') { coupe(); return; }
+    if (!p.ok || !p.id || !p.montantXof) { setVue({ ...v, enCours: false, erreur: raisonDuRefus(p.raison, p.resteDuJourXof) }); return; }
+    let transactionId = '';
+    try {
+      transactionId = (await payWithKkiapay({ amountXof: p.montantXof, partnerId: p.id, branchId: t.branchId, rendLaMainALaFermeture: true })).transactionId;
+    } catch (e) {
+      void abandonneLAutreMontant(t.jeton, p.id);
+      setVue({ ...v, enCours: false, erreur: estUneFenetreFermee(e) ? 'La fenêtre s’est fermée sans paiement.' : estUnePanneDeKkiapay(e) ? 'KkiaPay ne répond pas. Réessayez dans un instant.' : 'Le paiement n’est pas allé au bout.' });
+      return;
+    }
+    noteLeToucher();
+    const c = await confirmeLAutreMontant(t.jeton, p.id, transactionId);
+    if (c.raison === 'coupe') { coupe(); return; }
+    if (!c.ok) {
+      setVue({ ...v, enCours: false, erreur: c.raison === 'introuvable' ? 'KkiaPay ne connaît pas encore ce paiement. S’il est passé, la direction le retrouve au comptoir.' : raisonDite(c.raison) });
+      return;
+    }
+    setVue({ k: 'autre', montant: '', motif: v.motif, precision: '', fait: p.montantXof });
     void relis();
   };
 
@@ -450,6 +498,53 @@ export default function App() {
     </div>
   );
 
+  if (vue.k === 'autre') {
+    const v = vue;
+    return (
+      <main className="tp">
+        {tete}
+        <section className="tp-bloc">
+          {enTete}
+          <p className="tp-sur">Autre montant</p>
+          {v.fait ? (
+            <div className="tp-pile tp-centre">
+              <p className="tp-montant">{francs(v.fait)}</p>
+              <p>Reçu par KkiaPay, sur les comptes de la Maison. La direction le range au comptoir.</p>
+              <button type="button" className="tp-btn tp-btn--plein" onClick={() => setVue({ k: 'autre', montant: '', motif: 'gamme', precision: '' })}>Un autre montant</button>
+            </div>
+          ) : (
+            <form className="tp-pile" onSubmit={(e) => { e.preventDefault(); void encaisseLAutre(v); }}>
+              <label className="tp-champ" htmlFor="tp-montant">
+                <span className="tp-doux">Montant (F CFA)</span>
+                <input id="tp-montant" inputMode="numeric" autoComplete="off" placeholder="15 000" value={v.montant} disabled={v.enCours}
+                  onChange={(e) => setVue({ ...v, montant: e.target.value.replace(/[^\d ]/g, ''), erreur: undefined })} />
+              </label>
+              <fieldset className="tp-motifs" disabled={v.enCours}>
+                <legend className="tp-doux">Motif</legend>
+                {MOTIFS_DE_L_AUTRE_MONTANT.map((m) => (
+                  <label key={m.cle} className="tp-motif">
+                    <input type="radio" name="tp-motif" checked={v.motif === m.cle} onChange={() => setVue({ ...v, motif: m.cle, erreur: undefined })} />
+                    {m.dit}
+                  </label>
+                ))}
+              </fieldset>
+              <label className="tp-champ tp-champ--texte" htmlFor="tp-precision">
+                <span className="tp-doux">{v.motif === 'autre' ? 'Ce que c’est' : 'Précision (facultatif)'}</span>
+                <input id="tp-precision" autoComplete="off" maxLength={80} disabled={v.enCours} value={v.precision}
+                  placeholder={v.motif === 'gamme' ? 'Ex. : huile, deux flacons' : v.motif === 'acompte' ? 'Ex. : pour son rendez-vous du 3 décembre' : 'Ex. : ce qu’elle règle'}
+                  onChange={(e) => setVue({ ...v, precision: e.target.value, erreur: undefined })} />
+              </label>
+              <button type="submit" className="tp-btn tp-btn--plein" disabled={v.enCours || !kkiapayPeutSOuvrir() || !v.montant.trim()}>{v.enCours ? 'Un instant…' : 'Encaisser par KkiaPay'}</button>
+              <p className="tp-doux tp-petit">Mobile money ou carte, dans la fenêtre KkiaPay. Rien ne s’inscrit sur une facture ici : la direction range la vente ou l’acompte au comptoir.</p>
+            </form>
+          )}
+          {v.erreur && <p className="tp-alerte" role="alert">{v.erreur}</p>}
+          <button type="button" className="tp-btn" disabled={v.enCours} onClick={() => { setVue({ k: 'liste' }); void relis(); }}>Retour à la journée</button>
+        </section>
+      </main>
+    );
+  }
+
   if (vue.k === 'rdv') {
     const l = vue.ligne;
     return (
@@ -535,11 +630,27 @@ export default function App() {
             );
           })}
         </ul>
+        {/* « AUTRE MONTANT » (lot 2b) : la Gamme, un acompte, avec un motif. */}
+        {kkiapayPeutSOuvrir() && (
+          <button type="button" className="tp-btn" onClick={() => setVue({ k: 'autre', montant: '', motif: 'gamme', precision: '' })}>Autre montant (Gamme, acompte)</button>
+        )}
+        {(jour.autres ?? []).length > 0 && (
+          <ul className="tp-autres" aria-label="Les autres montants du jour">
+            {(jour.autres ?? []).map((a) => (
+              <li key={a.id}>
+                <span>{heureLocale(a.le)}</span>
+                <span>{a.motif}{a.precision ? ` · ${a.precision}` : ''}</span>
+                <b>{francs(a.montantXof)}</b>
+                <span className={`tp-puce${a.statut === 'payee' ? ' tp-puce--bon' : ''}`}>{a.statut === 'payee' ? 'Reçu' : 'En cours'}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {/* LE TOTAL DU SOIR (lot 2) : ce que MTN et KkiaPay ont confirmé, et les espèces à remettre. */}
         {jour.total && jour.total.seances > 0 && (
           <p className="tp-total">
             <span>Ce soir</span>
-            <b>{francs(jour.total.encaisseXof)}</b> encaissés{jour.total.especesARemettreXof > 0 ? <> · <b>{francs(jour.total.especesARemettreXof)}</b> en espèces à remettre</> : null}
+            <b>{francs(jour.total.encaisseXof + (jour.total.autresXof ?? 0))}</b> encaissés{jour.total.especesARemettreXof > 0 ? <> · <b>{francs(jour.total.especesARemettreXof)}</b> en espèces à remettre</> : null}
           </p>
         )}
         {typeof jour.resteDuJourXof === 'number' && jour.resteDuJourXof < PLAFOND_PAR_JOUR_XOF && (

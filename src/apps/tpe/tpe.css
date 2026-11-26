@@ -157,3 +157,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--tp-cuivre);
 .tp-total { margin: 4px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: 14px; color: var(--tp-encre, inherit); border-top: 1px solid rgba(30, 33, 80, .15); padding-top: 10px; }
 .tp-total span { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--tp-doux); margin-right: 4px; }
 .tp-total b { font-family: 'Cormorant Garamond', Georgia, serif; font-weight: 400; font-size: 20px; }
+
+/* « AUTRE MONTANT » (lot 2b, 26 novembre 2026) */
+.tp-champ--texte input { text-align: left; letter-spacing: normal; font-size: 15px; }
+.tp-motifs { border: 0; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tp-motifs legend { margin-bottom: 4px; }
+.tp-motif { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--tp-filet); border-radius: 3px; background: var(--tp-carte); cursor: pointer; }
+.tp-motif input { accent-color: var(--tp-cuivre); width: 18px; height: 18px; }
+.tp-autres { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.tp-autres li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; font-size: 13px; padding: 6px 0; border-top: 1px solid var(--tp-filet); }
+.tp-autres li span:first-child { color: var(--tp-doux); }

@@ -201,16 +201,76 @@ export function engagementsDesOuvertures(rdvs: readonly RdvDuTpe[], membreId: st
     .map((r) => ({ rdvId: r.id, montantXof: Number(r.lienDeReglement?.tpe?.montantXof) || 0 }));
 }
 
+/* ── « AUTRE MONTANT » (lot 2b, 26 novembre 2026, « construis le lot 2b ») ──
+   La maquette : « Autre montant sert à un produit de la Gamme ou à un
+   acompte, avec un motif », pour une cliente de passage. Le téléphone le
+   PRÉPARE sous les plafonds, la cliente paie dans la fenêtre KkiaPay, et la
+   transaction confirmée entre au registre. Le comptoir range ensuite la vente
+   ou l'acompte (« C'est son paiement »). */
+export const MOTIFS_DE_L_AUTRE_MONTANT = [
+  { cle: 'gamme', dit: 'Produit de la Gamme' },
+  { cle: 'acompte', dit: 'Acompte d’un rendez-vous' },
+  { cle: 'autre', dit: 'Autre, à expliquer' },
+] as const;
+export type MotifDeLAutreMontant = (typeof MOTIFS_DE_L_AUTRE_MONTANT)[number]['cle'];
+export const motifDit = (m: unknown): string => MOTIFS_DE_L_AUTRE_MONTANT.find((x) => x.cle === m)?.dit ?? 'Autre montant';
+/** Le préfixe de la référence d'un autre montant : il dit au registre et au comptoir d'où vient le paiement. */
+export const PREFIXE_DE_L_AUTRE_MONTANT = 'tpa-';
+export const estUnAutreMontant = (id: unknown): boolean => typeof id === 'string' && /^tpa-[0-9a-z]{4,20}-[0-9a-z]{4,12}$/.test(id);
+/** La référence : l'instant et un hasard, en base 36. */
+export const idDeLAutreMontant = (ms: number, alea: number): string =>
+  `${PREFIXE_DE_L_AUTRE_MONTANT}${Math.max(0, Math.floor(ms)).toString(36)}-${(Math.max(0, Math.floor(alea)) % 2_176_782_336).toString(36).padStart(6, '0')}`;
+/** Le petit texte qui l'accompagne : court, sans balise. */
+export const precisionPropre = (s: unknown): string => String(s ?? '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+
+/** Un autre montant bien formé : un montant d'au moins 100 F, un motif connu,
+    et une précision quand le motif est « autre ». */
+export type VerdictDeLAutreMontant = { ok: true; montantXof: number; motif: MotifDeLAutreMontant; precision: string } | { ok: false; raison: 'montant' | 'motif' | 'precision' };
+export function autreMontantValide(o: { montantXof?: unknown; motif?: unknown; precision?: unknown }): VerdictDeLAutreMontant {
+  const m = Math.round(Number(o.montantXof));
+  if (!Number.isFinite(m) || m < 100) return { ok: false, raison: 'montant' };
+  const motif = MOTIFS_DE_L_AUTRE_MONTANT.find((x) => x.cle === o.motif)?.cle;
+  if (!motif) return { ok: false, raison: 'motif' };
+  const precision = precisionPropre(o.precision);
+  if (motif === 'autre' && precision.length < 3) return { ok: false, raison: 'precision' };
+  return { ok: true, montantXof: m, motif, precision };
+}
+
+/** La ligne de la table `tpe_autres` (0248), telle que la base la rend. */
+export type StatutDeLAutreMontant = 'en-cours' | 'payee' | 'abandonnee';
+export type LigneDeLAutreMontant = {
+  id: string; branch_id: string; membre_id: string; nom: string; montant_xof: number; motif: string; precision?: string | null;
+  cree_le: string; statut: StatutDeLAutreMontant; transaction_id?: string | null; paye_le?: string | null; frais_xof?: number | null;
+};
+
+/** Les autres montants d'un TPE aujourd'hui, en engagements : préparés ou payés, jamais abandonnés. */
+export function engagementsDesAutres(lignes: readonly Pick<LigneDeLAutreMontant, 'id' | 'montant_xof' | 'membre_id' | 'cree_le' | 'statut'>[], membreId: string, jour: string): EngagementDuTpe[] {
+  return lignes
+    .filter((l) => l && l.membre_id === membreId && l.statut !== 'abandonnee' && jourDuTpe(Date.parse(l.cree_le)) === jour)
+    .map((l) => ({ rdvId: l.id, montantXof: l.montant_xof }));
+}
+
+/** Le paiement de KkiaPay règle-t-il cet autre montant ? Réussi, et au moins
+    le montant préparé (à un franc près). */
+export const kkiapayReglaLAutre = (tx: { status?: unknown; amount?: unknown } | null | undefined, montantXof: number): boolean =>
+  !!tx && String(tx.status ?? '').toUpperCase() === 'SUCCESS' && Math.round(Number(tx.amount ?? 0)) + 1 >= Math.round(Number(montantXof) || 0);
+
 /** LE TOTAL DU SOIR d'un TPE : ce que KkiaPay ou MTN ont confirmé sur les
-    séances qu'il a ouvertes (le dernier paiement, venu après l'ouverture), et
-    les espèces déclarées (à remettre ou reçues). */
-export type TotalDuSoir = { encaisseXof: number; especesXof: number; especesARemettreXof: number; seances: number };
+    séances qu'il a ouvertes (le dernier paiement, venu après l'ouverture), les
+    espèces déclarées (à remettre ou reçues), et ses autres montants payés. */
+export type TotalDuSoir = { encaisseXof: number; especesXof: number; especesARemettreXof: number; autresXof: number; seances: number };
 export function totalDuSoir(
   rdvs: readonly RdvDuTpe[],
   especes: readonly Pick<LigneDesEspeces, 'montant_xof' | 'membre_id' | 'declare_le' | 'statut'>[],
   membreId: string, jour: string,
+  autres: readonly Pick<LigneDeLAutreMontant, 'montant_xof' | 'membre_id' | 'cree_le' | 'statut'>[] = [],
 ): TotalDuSoir {
-  let encaisseXof = 0; let especesXof = 0; let especesARemettreXof = 0; let seances = 0;
+  let encaisseXof = 0; let especesXof = 0; let especesARemettreXof = 0; let autresXof = 0; let seances = 0;
+  for (const a of autres) {
+    if (!a || a.membre_id !== membreId || a.statut !== 'payee' || jourDuTpe(Date.parse(a.cree_le)) !== jour) continue;
+    autresXof += Math.max(0, Math.round(Number(a.montant_xof) || 0));
+    seances += 1;
+  }
   for (const r of rdvs) {
     const t = r?.lienDeReglement?.tpe;
     if (!t || t.membreId !== membreId || jourDuTpe(Date.parse(String(t.le))) !== jour) continue;
@@ -228,7 +288,7 @@ export function totalDuSoir(
     if (e.statut === 'a-remettre') especesARemettreXof += m;
     seances += 1;
   }
-  return { encaisseXof, especesXof, especesARemettreXof, seances };
+  return { encaisseXof, especesXof, especesARemettreXof, autresXof, seances };
 }
 /* ⟨/tpe-de-poche⟩ */
 
@@ -251,4 +311,23 @@ export function adresseDActivation(origine: string, cheminDuTrone: string, code:
 export function adresseDuReglementAuTpe(cheminDuSite: string, jetonDuLien: string): string {
   const base = cheminDuSite.endsWith('/') ? cheminDuSite : `${cheminDuSite}/`;
   return `${base}payer.html?tg=r-${encodeURIComponent(jetonDuLien)}&tpe=1`;
+}
+
+/** OÙ EN EST UN AUTRE MONTANT, AU TRÔNE (lot 2b, 26 novembre 2026).
+    « rangé » : une pièce porte sa transaction (le comptoir a choisi « C'est
+    son paiement ») ; « à ranger » : KkiaPay l'a reçu, aucune pièce encore ;
+    « en cours » : la fenêtre est ouverte, ou le téléphone n'a rien confirmé ;
+    « abandonné » : la fenêtre s'est fermée sans paiement. Le registre fait
+    foi même quand le téléphone a perdu le réseau avant de confirmer. */
+export type EtatDeLAutreMontant = 'range' | 'a-ranger' | 'en-cours' | 'abandonnee';
+export function etatDeLAutreMontant(
+  l: Pick<LigneDeLAutreMontant, 'id' | 'statut' | 'transaction_id'>,
+  recuAuRegistre: ReadonlyMap<string, string>,
+  refsPrises: ReadonlySet<string>,
+): { etat: EtatDeLAutreMontant; ref?: string } {
+  const ref = String(l.transaction_id ?? '').trim() || recuAuRegistre.get(l.id) || '';
+  if (ref && refsPrises.has(ref)) return { etat: 'range', ref };
+  if (l.statut === 'payee' || ref) return { etat: 'a-ranger', ...(ref ? { ref } : {}) };
+  if (l.statut === 'abandonnee') return { etat: 'abandonnee' };
+  return { etat: 'en-cours' };
 }

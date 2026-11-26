@@ -24,25 +24,42 @@ export type RecuDuTpe = {
   source?: string;
   at: string;
   branchId?: string;
+  /** « Autre montant » d'un TPE de poche (lot 2b, 26 novembre 2026) : son
+      motif, sa précision, l'employée qui l'a encaissé. */
+  autre?: { motif: string; precision?: string; nom?: string };
 };
+
+/** LE PRÉFIXE D'UN « AUTRE MONTANT » DU TPE DE POCHE (copie de
+    `PREFIXE_DE_L_AUTRE_MONTANT`, tpe-de-poche-pur.ts : ce module n'importe
+    rien ; le banc vérifie que les deux disent la même chose). */
+export const PREFIXE_DE_L_AUTRE_DU_TPE = 'tpa-';
+const MOTIF_DIT: Record<string, string> = { gamme: 'Produit de la Gamme', acompte: 'Acompte d’un rendez-vous', autre: 'Autre montant' };
 
 /** Une ligne du registre `payments` lue comme un paiement du TPE, ou null :
     KkiaPay, réussi, sans cible (un paiement en ligne vise son rendez-vous,
-    son abonnement ou sa carte cadeau, il est déjà compté ailleurs). */
+    son abonnement ou sa carte cadeau, il est déjà compté ailleurs) — ou
+    visant un « autre montant » du TPE de poche (`tpa-…`), qui n'est porté
+    par aucune pièce tant que le comptoir ne l'a pas rangé. */
 export function recuDuRegistre(row: { id?: unknown; branch_id?: unknown; data?: unknown } | null | undefined): RecuDuTpe | null {
   const d = (row?.data ?? {}) as Record<string, unknown>;
   if (String(d.provider ?? '') !== 'kkiapay') return null;
   if (String(d.status ?? 'success') !== 'success') return null;
-  if (String(d.partnerId ?? '').trim()) return null;
+  const cible = String(d.partnerId ?? '').trim();
+  const estUnAutre = cible.startsWith(PREFIXE_DE_L_AUTRE_DU_TPE);
+  if (cible && !estUnAutre) return null;
   const ref = String(row?.id ?? d.id ?? '').trim();
   const montant = Math.round(Number(d.amountXof ?? 0));
   const at = String(d.at ?? '');
   if (!ref || !(montant > 0) || !Number.isFinite(Date.parse(at))) return null;
   const branche = String(row?.branch_id ?? d.branchId ?? '').trim();
+  const tpe = (d.tpe ?? {}) as Record<string, unknown>;
+  const precision = String(d.precision ?? '').trim();
+  const nom = String(tpe.nom ?? '').trim();
   return {
     ref, montantXof: montant, fraisXof: Math.max(0, Math.round(Number(d.feesXof ?? 0))), at,
     ...(d.method ? { source: String(d.method) } : {}),
     ...(branche ? { branchId: branche } : {}),
+    ...(estUnAutre ? { autre: { motif: MOTIF_DIT[String(d.motif ?? '')] ?? 'Autre montant', ...(precision ? { precision } : {}), ...(nom ? { nom } : {}) } } : {}),
   };
 }
 
@@ -59,21 +76,26 @@ export function refsDejaPrises(pieces: readonly { payments?: readonly { trace?: 
 /** La fenêtre des paiements proposés : trois heures. Un paiement plus vieux
     se retrouve par sa référence (voie 2). */
 export const FENETRE_DU_TPE_MIN = 180;
+/** Un « autre montant » du TPE de poche se range au comptoir dans la
+    journée : il se propose vingt-quatre heures. */
+export const FENETRE_DES_AUTRES_MIN = 24 * 60;
 
 /** CE QUE L'ENCAISSEMENT PROPOSE : les paiements du TPE des trois dernières
-    heures, de la branche (ou sans branche : KkiaPay ne la connaît pas), pas
-    encore pris. Le montant juste en tête, puis le plus récent. */
+    heures (un « autre montant » : vingt-quatre), de la branche (ou sans
+    branche : KkiaPay ne la connaît pas), pas encore pris. Le montant juste
+    en tête, puis le plus récent. */
 export function recusAProposer(
   recus: readonly RecuDuTpe[],
   o: { maintenantMs: number; dejaPris: ReadonlySet<string>; montantXof?: number; branchId?: string; fenetreMin?: number },
 ): (RecuDuTpe & { juste: boolean })[] {
   const depuis = o.maintenantMs - (o.fenetreMin ?? FENETRE_DU_TPE_MIN) * 60_000;
+  const depuisLesAutres = o.maintenantMs - Math.max(o.fenetreMin ?? FENETRE_DU_TPE_MIN, FENETRE_DES_AUTRES_MIN) * 60_000;
   const vus = new Set<string>();
   const m = Math.round(Number(o.montantXof ?? 0));
   return recus
     .filter((r) => {
       const t = Date.parse(r.at);
-      if (!(t >= depuis) || t > o.maintenantMs + 5 * 60_000) return false;
+      if (!(t >= (r.autre ? depuisLesAutres : depuis)) || t > o.maintenantMs + 5 * 60_000) return false;
       if (o.dejaPris.has(r.ref) || vus.has(r.ref)) return false;
       if (o.branchId && r.branchId && r.branchId !== o.branchId) return false;
       vus.add(r.ref);

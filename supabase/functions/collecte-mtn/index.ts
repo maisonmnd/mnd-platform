@@ -101,7 +101,8 @@
    Le GET les rend (`fraisAjoutesPct`) : la page « Régler » dit le même taux
    que la demande. Les frais d'une demande partie restent les siens
    (`frais_ajoutes_xof`, écrits avant l'appel). */
-const VERSION = '2026-11-22-a';
+/* 2026-11-26-a : le nom de l'employée sur le versement d'une séance encaissée par son TPE de poche (leTpeDuReglement). */
+const VERSION = '2026-11-26-a';
 
 const CORS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -1075,6 +1076,24 @@ async function laCaisse(branchId: string): Promise<void> {
   await base('cashboxes', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ id: c.id, branch_id: branchId, data: c }) });
 }
 
+/* LE TPE DE POCHE SUR LE VERSEMENT — lot 2b, 26 novembre 2026. La séance
+   qu'une employée a ouverte sur son TPE (`lienDeReglement.tpe`, posé par
+   `tpe-de-poche`) et réglée dans les deux heures porte son nom : « encaissé
+   par Brice · TPE de poche », comme une main du comptoir (Revenu du jour, la
+   Caisse le disent déjà). Au-delà, la cliente a pu régler seule par son lien :
+   le versement se tait plutôt que de deviner. Tenue aussi dans regler-la-seance. */
+const FENETRE_DU_TPE_SUR_LE_VERSEMENT_MS = 2 * 60 * 60_000;
+function leTpeDuReglement(lien: unknown, quandMs: number): { encaissePar: string; tpe: { membreId: string; nom: string } } | null {
+  const m = ((lien ?? {}) as { tpe?: { nom?: unknown; membreId?: unknown; le?: unknown } }).tpe;
+  const nom = String(m?.nom ?? '').trim();
+  const membreId = String(m?.membreId ?? '').trim();
+  const le = Date.parse(String(m?.le ?? ''));
+  if (!nom || !membreId || !Number.isFinite(le)) return null;
+  const ecart = quandMs - le;
+  if (ecart < -5 * 60_000 || ecart > FENETRE_DU_TPE_SUR_LE_VERSEMENT_MS) return null;
+  return { encaissePar: `${nom} · TPE de poche`, tpe: { membreId, nom } };
+}
+
 /** POSER UN RÈGLEMENT REÇU. Seul celui qui a écrit « reçu » au registre
     (écriture conditionnelle) l'appelle, ou le passage pour un règlement reçu
     resté sans pose (une panne entre les deux). Un rejeu ne double rien : le
@@ -1083,6 +1102,9 @@ async function poser(c: CollecteMtn): Promise<{ pose: boolean; honore: boolean; 
   if (c.genre !== 'reglement' || !c.piece_id || !c.rdv_id || c.etat !== 'recu') return { pose: false, honore: false };
   const quand = new Date(Date.parse(String(c.repondu_le ?? '')) || Date.now());
   const idV = idDuVersementMtn(c.reference);
+  /* Le TPE de poche qui a ouvert la séance (lot 2b) : lu une fois, sur le rendez-vous. */
+  const lien = premiere(await base(`appointments?id=eq.${enc(c.rdv_id)}&select=data&limit=1`))?.data?.lienDeReglement;
+  const parLeTpe = leTpeDuReglement(lien, quand.getTime());
   for (let essai = 0; essai < 3; essai++) {
     const lu = await base(`invoices?id=eq.${enc(c.piece_id)}&select=id,branch_id,data,updated_at&limit=1`);
     if (!lu.ok) return { pose: false, honore: false, raison: 'lecture' };
@@ -1110,7 +1132,7 @@ async function poser(c: CollecteMtn): Promise<{ pose: boolean; honore: boolean; 
        sa charge que ce qu'ils ne couvrent pas. */
     const fraisAjoutes = Math.max(0, Math.round(Number(c.frais_ajoutes_xof) || 0));
     const aSaCharge = fraisALaChargeDeLaMaison(frais, fraisAjoutes);
-    const v = versementMtn({ reference: c.reference, montantXof: partage.versementXof, quand, msisdn: c.msisdn, transaction: c.transaction_mtn });
+    const v = { ...versementMtn({ reference: c.reference, montantXof: partage.versementXof, quand, msisdn: c.msisdn, transaction: c.transaction_mtn }), ...(parLeTpe ?? {}) };
     const trace = traceMtn({ v, reference: c.reference, transaction: c.transaction_mtn, quand, pourboireXof: partage.pourboireXof, fraisXof: frais, msisdn: c.msisdn, fraisAjoutesXof: fraisAjoutes });
     const neuve = pieceRegleeParMtn(piece, v, partage.pourboireXof, trace);
     const w = await base(`invoices?id=eq.${enc(piece.id)}${ligne.updated_at ? `&updated_at=eq.${enc(ligne.updated_at)}` : ''}`, {

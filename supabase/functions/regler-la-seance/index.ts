@@ -83,7 +83,8 @@ const enClairDuLibelle = (libelle: string, services: readonly { name?: unknown; 
    n'avait pas pris se lisait comme une mise en ligne réussie. Elle suit
    désormais chaque changement de comportement. */
 /* 2026-11-25-a : les mots en clair à côté des lignes de la page (avecLesMotsEnClair). */
-const VERSION = '2026-11-25-a';
+/* 2026-11-26-a : le nom de l'employée sur le versement d'une séance encaissée par son TPE de poche (leTpeDuReglement). */
+const VERSION = '2026-11-26-a';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -1027,6 +1028,24 @@ async function transaction(transactionId: string): Promise<KkiaTransaction> {
   return (await res.json()) as KkiaTransaction;
 }
 
+/* LE TPE DE POCHE SUR LE VERSEMENT — lot 2b, 26 novembre 2026. La séance
+   qu'une employée a ouverte sur son TPE (`lienDeReglement.tpe`, posé par
+   `tpe-de-poche`) et réglée dans les deux heures porte son nom : « encaissé
+   par Brice · TPE de poche », comme une main du comptoir (Revenu du jour, la
+   Caisse le disent déjà). Au-delà, la cliente a pu régler seule par son lien :
+   le versement se tait plutôt que de deviner. Tenue aussi dans collecte-mtn. */
+const FENETRE_DU_TPE_SUR_LE_VERSEMENT_MS = 2 * 60 * 60_000;
+function leTpeDuReglement(lien: unknown, quandMs: number): { encaissePar: string; tpe: { membreId: string; nom: string } } | null {
+  const m = ((lien ?? {}) as { tpe?: { nom?: unknown; membreId?: unknown; le?: unknown } }).tpe;
+  const nom = String(m?.nom ?? '').trim();
+  const membreId = String(m?.membreId ?? '').trim();
+  const le = Date.parse(String(m?.le ?? ''));
+  if (!nom || !membreId || !Number.isFinite(le)) return null;
+  const ecart = quandMs - le;
+  if (ecart < -5 * 60_000 || ecart > FENETRE_DU_TPE_SUR_LE_VERSEMENT_MS) return null;
+  return { encaissePar: `${nom} · TPE de poche`, tpe: { membreId, nom } };
+}
+
 /* ══ L'ARGENT POSÉ ═══════════════════════════════════════════════════════
    Le registre d'abord (sa clé est la transaction : elle ne règle qu'UN
    rendez-vous), puis la pièce relue à l'instant, puis le rendez-vous. Une
@@ -1069,7 +1088,8 @@ async function appliquer(rdv: Ligne, t: { id: string; amountXof: number; feesXof
   if (!partage.ok) return { ok: false, erreur: partage.raison, status: 409 };
 
   const quand = new Date();
-  const v = versementEnLigne({ transactionId: t.id, montantXof: partage.versementXof, source: t.source, quand });
+  const parLeTpe = leTpeDuReglement(r.lienDeReglement, quand.getTime());
+  const v = { ...versementEnLigne({ transactionId: t.id, montantXof: partage.versementXof, source: t.source, quand }), ...(parLeTpe ?? {}) };
   const trace: ReglementEnLigne = {
     id: v.id, transactionId: t.id, payeLe: quand.toISOString(), montantXof: partage.versementXof,
     pourboireXof: partage.pourboireXof, fraisXof: t.feesXof, ...(moyenDit(t.source) ? { moyen: moyenDit(t.source) } : {}),

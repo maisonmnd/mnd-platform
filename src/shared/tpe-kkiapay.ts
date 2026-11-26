@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabase';
-import { recuDuRegistre, FENETRE_DU_TPE_MIN, type RecuDuTpe, type VerdictDeLaReference } from './tpe-kkiapay-pur';
+import { recuDuRegistre, FENETRE_DES_AUTRES_MIN, FENETRE_DU_TPE_MIN, PREFIXE_DE_L_AUTRE_DU_TPE, type RecuDuTpe, type VerdictDeLaReference } from './tpe-kkiapay-pur';
 
 /* ══ LE TPE KKIAPAY, CÔTÉ TRÔNE — 22 novembre 2026 ════════════════════════
    Voie 1 : les paiements que KkiaPay a signalés (registre `payments`, sans
@@ -10,7 +10,8 @@ import { recuDuRegistre, FENETRE_DU_TPE_MIN, type RecuDuTpe, type VerdictDeLaRef
 
 const PAS_MS = 6_000;
 
-/** Les paiements du TPE des trois dernières heures (le personnel lit le
+/** Les paiements du TPE des trois dernières heures, et les « autres montants »
+    des TPE de poche de la journée (le personnel lit le
     registre : RLS `is_staff`). Vide hors ligne, ou tant que `actif` est faux. */
 export function useRecusDuTpe(actif: boolean): { recus: RecuDuTpe[]; lu: boolean } {
   const [recus, setRecus] = useState<RecuDuTpe[]>([]);
@@ -21,10 +22,18 @@ export function useRecusDuTpe(actif: boolean): { recus: RecuDuTpe[]; lu: boolean
     let vivant = true;
     const lis = async () => {
       const depuis = new Date(Date.now() - FENETRE_DU_TPE_MIN * 60_000).toISOString();
-      const { data, error } = await sb.from('payments').select('id, branch_id, data')
-        .eq('data->>provider', 'kkiapay').gte('data->>at', depuis).limit(50);
+      /* Les « autres montants » des TPE de poche (lot 2b) : toute la journée. */
+      const depuisLesAutres = new Date(Date.now() - FENETRE_DES_AUTRES_MIN * 60_000).toISOString();
+      const [{ data, error }, autres] = await Promise.all([
+        sb.from('payments').select('id, branch_id, data')
+          .eq('data->>provider', 'kkiapay').gte('data->>at', depuis).limit(50),
+        sb.from('payments').select('id, branch_id, data')
+          .eq('data->>provider', 'kkiapay').like('data->>partnerId', `${PREFIXE_DE_L_AUTRE_DU_TPE}%`).gte('data->>at', depuisLesAutres).limit(50),
+      ]);
       if (!vivant || error) return;
-      setRecus((data ?? []).map(recuDuRegistre).filter((r): r is RecuDuTpe => !!r));
+      const vus = new Set<string>();
+      setRecus([...(data ?? []), ...(autres.data ?? [])].map(recuDuRegistre)
+        .filter((r): r is RecuDuTpe => !!r && !vus.has(r.ref) && !!vus.add(r.ref)));
       setLu(true);
     };
     void lis();
