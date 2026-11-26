@@ -77,12 +77,44 @@ function enregistreLeServiceDeLApp(): void {
   } catch { /* rien */ }
 }
 
+/** « Copier l'adresse » : le presse-papiers si le téléphone l'accepte, sinon
+    l'adresse se sélectionne pour un appui long. */
+function CopierLAdresse() {
+  const [fait, setFait] = useState<'' | 'copiee' | 'a-la-main'>('');
+  const copie = async () => {
+    try {
+      await navigator.clipboard.writeText(adresseSansMarque());
+      setFait('copiee');
+    } catch {
+      try {
+        const p = document.querySelector('.tp-adresse');
+        const r = document.createRange();
+        if (p) { r.selectNodeContents(p); const s = window.getSelection(); s?.removeAllRanges(); s?.addRange(r); }
+      } catch { /* rien */ }
+      setFait('a-la-main');
+    }
+  };
+  return (
+    <>
+      <button type="button" className="tp-btn tp-btn--plein" onClick={() => { void copie(); }}>Copier l’adresse</button>
+      {fait === 'copiee' && <p className="tp-doux tp-petit">Adresse copiée. Ouvrez Chrome et collez-la.</p>}
+      {fait === 'a-la-main' && <p className="tp-doux tp-petit">L’adresse est sélectionnée : appuyez longuement dessus, puis Copier.</p>}
+    </>
+  );
+}
+
 function Installer({ invitation, onInstalle }: { invitation: InvitationAInstaller | null; onInstalle: () => void }) {
   if (dansUneAutreApp()) {
     return (
       <div className="tp-installer">
-        <p className="tp-doux tp-petit"><b>Vous êtes dans une autre application</b> : elle ne peut pas installer Trône Terminal. Ouvrez cette adresse dans {estUnIphone() ? 'Safari' : 'Chrome'} :</p>
+        <p className="tp-doux tp-petit"><b>Vous êtes dans une autre application</b> de la Maison : elle ne peut pas installer Trône Terminal.</p>
+        <ol className="tp-etapes">
+          <li>Copiez l’adresse.</li>
+          <li>Ouvrez <b>{estUnIphone() ? 'Safari' : 'Chrome'}</b> vous-même et collez-la dans la barre d’adresse : une adresse tapée ne repart jamais dans une autre app.</li>
+          <li>{estUnIphone() ? 'Partager › « Sur l’écran d’accueil ».' : 'Touchez « Installer l’app Trône Terminal ».'}</li>
+        </ol>
         <p className="tp-adresse">{adresseSansMarque()}</p>
+        <CopierLAdresse />
       </div>
     );
   }

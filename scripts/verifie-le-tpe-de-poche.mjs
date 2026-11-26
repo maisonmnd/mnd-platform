@@ -286,7 +286,8 @@ const controles = [
   {
     dit: 'ouverte dans une autre app, la page le dit et donne son adresse a ouvrir dans le navigateur',
     ok: (s) => /const dansUneAutreApp = \(\): boolean => estAutonome\(\) && !lanceeParLeTerminal\(\);/.test(s.telephone)
-      && /<p className="tp-adresse">\{adresseSansMarque\(\)\}<\/p>/.test(s.telephone) && /if \(dansUneAutreApp\(\)\) \{/.test(s.telephone),
+      && /<p className="tp-adresse">\{adresseSansMarque\(\)\}<\/p>\s*<CopierLAdresse \/>/.test(s.telephone) && /if \(dansUneAutreApp\(\)\) \{/.test(s.telephone)
+      && /await navigator\.clipboard\.writeText\(adresseSansMarque\(\)\);/.test(s.telephone),
     casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'if (dansUneAutreApp()) {', 'if (false) {') }),
   },
   {
