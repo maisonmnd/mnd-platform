@@ -44,6 +44,7 @@ import { remiseFamilleDeLaTete } from '../../shared/offres-pur';
 import { deliveryFee, useSettings } from '../../shared/settings';
 import { palierDuCarnet, pasSuivant, jourLocal, PALIER_DIT } from '../../shared/paliers';
 import { ProchaineMarche } from './ProchaineMarche';
+import { LesNouvellesDeLaMaison } from './LesNouvellesDeLaMaison';
 import { pastilleDeLaCouronne } from './pastille-pure';
 import {
   AlerteUnique, BoutonsDeLAccueil, CarteFormule, CarteSolde, Cloche, TableauDeBord, aUneFormule, sceauDeLaSeance,
@@ -1002,6 +1003,8 @@ export function HomeTab({
 
         {lesOffres}
         {laListe}
+        {/* LES NOUVELLES DE LA MAISON (26 novembre 2026) : la question, discrète, tant qu'elle n'a pas répondu. */}
+        <LesNouvellesDeLaMaison />
 
         {lireBilan && monBilan && client && <BilanLecteur bilan={monBilan} porteuse={client} onClose={() => setLireBilan(false)} onReserver={moduleHidden(client, 'reserver') ? undefined : (serviceId) => { setLireBilan(false); onOpenBooking({ serviceId }); }} />}
 

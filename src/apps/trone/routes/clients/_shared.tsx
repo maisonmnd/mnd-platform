@@ -87,6 +87,7 @@ import { detailDuService, detailParVenue } from '../../../../shared/le-moment-de
 import { rituelDeLaRepriseEffacee } from '../../../../shared/reprise-nue';
 import { LeBilanDeLaSeance } from './LeBilanDeLaSeance';
 import { FicheDuJour } from './FicheDuJour';
+import { AccordAuComptoir } from './AccordDesNouvelles';
 import { predictNextVisit, cadenceLabel, jourFavoriDe } from '../../../../shared/cadence';
 import { litLaPhrase, estUnePhrase, departage, type LectureDeLaPhrase } from '../../../../shared/phrase-de-rendez-vous-pur';
 import {
@@ -4269,6 +4270,8 @@ function RdvModalCorps({
         {/* AVANT DE LA RECEVOIR — 19 octobre 2026 : la fiche du jour (Claude), pour un
             rendez-vous du jour ou à venir ; le bloc tient sa porte lui-même. */}
         {appt && <FicheDuJour appt={appt} client={rdvClient} byId={byId} resteDu={(a) => apptDueXof(a, byId)} />}
+        {/* LES NOUVELLES DE LA MAISON (26 novembre 2026) : une ligne, le jour de sa venue, tant qu'elle n'a pas répondu. */}
+        {appt && <AccordAuComptoir client={rdvClient} rdv={appt} />}
         {/* ══ LA CASE UNIQUE — 24 octobre 2026 ══════════════════════════════
             Un nom, un numéro ou une prestation : la même case trouve la
             cliente (ou en inscrit une nouvelle) et pose une prestation. */}

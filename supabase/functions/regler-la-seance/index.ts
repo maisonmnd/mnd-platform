@@ -84,7 +84,8 @@ const enClairDuLibelle = (libelle: string, services: readonly { name?: unknown; 
    désormais chaque changement de comportement. */
 /* 2026-11-25-a : les mots en clair à côté des lignes de la page (avecLesMotsEnClair). */
 /* 2026-11-26-a : le nom de l'employée sur le versement d'une séance encaissée par son TPE de poche (leTpeDuReglement). */
-const VERSION = '2026-11-26-a';
+/* 2026-11-26-b : l'accord des nouvelles d'un bouton, à la sortie (`lire` dit `accordADemander`, l'action `nouvelles` l'écrit, source `reglement`). */
+const VERSION = '2026-11-26-b';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -1268,16 +1269,20 @@ async function lire(req: Request, b: any, noteLOuverture: boolean) {
      porte. On le LIT — on ne dépose rien ici, et on n'invente pas de lien
      quand il n'y en a pas : la page dira « ce soir ». */
   const etoilesJeton = pieceLigne ? await leJetonDesEtoiles(pieceLigne.id) : undefined;
+  /* L'ACCORD DES NOUVELLES (26 novembre 2026) : la page apprend seulement si
+     la question se pose, jamais la réponse déjà là ; jamais par le lien de
+     l'invitée, qui paie et ne répond pas pour elle. */
+  const accord = !parInvitee && await laQuestionDesNouvelles(r.clientId) ? { accordADemander: true } : {};
   /* RÉGLER AVANT ET APRÈS (7 novembre 2026) : sans pièce, un rendez-vous que
      Ma Couronne a ouvert se règle sur lui-même, au reste du serveur ; tout
      réglé, la page dit « réglée ». Sinon, la page d'avant (elle attend sa pièce). */
   if (!piece) {
     const sp = await laPorteSansPiece(rdv, Date.now());
     if (sp && (sp.porte.ouverte || sp.porte.raison === 'deja-regle')) {
-      return json({ ok: true, rattrapes, page: pageSansPiece({ rdv: r as any, porte: sp.porte, quand: sp.moment, prenom, reference: referenceDuRdv(rdv.id), branchId: rdv.branch_id }) });
+      return json({ ok: true, rattrapes, page: pageSansPiece({ rdv: r as any, porte: sp.porte, quand: sp.moment, prenom, reference: referenceDuRdv(rdv.id), branchId: rdv.branch_id }), ...accord });
     }
   }
-  return json({ ok: true, rattrapes, page: await avecLesMotsEnClair(pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date(), parInvitee, ...(etoilesJeton ? { etoilesJeton } : {}) })) });
+  return json({ ok: true, rattrapes, page: await avecLesMotsEnClair(pageDuLien({ rdv: r, piece, prenom, branchId: rdv.branch_id, maintenant: new Date(), parInvitee, ...(etoilesJeton ? { etoilesJeton } : {}) })), ...accord });
 }
 
 async function regler(req: Request, b: any) {
@@ -1463,6 +1468,132 @@ async function gamme(req: Request, b: any) {
   return json({ error: 'bad_request' }, 400);
 }
 
+/* ══ L'ACCORD DES NOUVELLES, D'UN BOUTON — 26 novembre 2026 ═════════════
+   L'audit du Trône (B1, « construis » de Yéman) : une poignée de fiches
+   seulement avait répondu à la question des nouvelles. Sur cette page, une
+   fois la séance réglée (le merci), la question de la Maison, ses deux
+   boutons (shared/accord-whatsapp-pur). `lire` dit seulement si elle se pose
+   (`accordADemander`) ; `nouvelles` écrit la réponse sur la fiche du
+   rendez-vous que CE jeton ouvre, et sur elle seule : jamais par-dessus une
+   réponse déjà là (ni oui, ni non, ni STOP), jamais pour un enfant ni une
+   fiche archivée, jamais par le lien de l'invitée de « régler à deux », ni
+   par celui d'un foyer (il n'ouvre aucune fiche seule). Source `reglement`,
+   le jour de Cotonou. La fiche se relit et ne se réécrit que si personne ne
+   l'a touchée entre-temps ; le geste s'inscrit au journal, sans texte. La
+   règle est le bloc ⟨accord-des-nouvelles⟩ de
+   src/shared/accord-des-nouvelles-pur.ts, recopié par
+   scripts/accord-copie-serveur.mjs. */
+/* ⟨accord-des-nouvelles⟩ */
+/** D'où vient la réponse : la liste de `AccordDesNouvelles['par']`
+    (shared/audiences-pur). `reglement` (26 novembre 2026) : sur la page
+    « Régler », après le paiement de sa séance. */
+export type SourceDeLAccord = 'comptoir' | 'site' | 'couronne' | 'stop' | 'whatsapp' | 'reglement';
+export const SOURCES_DE_L_ACCORD: readonly SourceDeLAccord[] = ['comptoir', 'reglement', 'couronne', 'whatsapp', 'site', 'stop'];
+
+/** La réponse posée sur la fiche : oui ou non, le jour du salon, d'où elle vient. */
+export type AccordPose = { oui: boolean; le: string; par: SourceDeLAccord };
+
+/** Ce que la règle lit d'une fiche. */
+export type FicheDeLAccord = {
+  nouvelles?: { oui?: unknown; le?: unknown; par?: unknown } | null;
+  archived?: boolean | null;
+  segments?: readonly string[] | null;
+  birthday?: string | null;
+};
+
+/** Mineure ce jour-là (AAAA-MM-JJ), d'après sa date de naissance. Sans date
+    lisible, non : la règle de `estMineur` (shared/clients-pur), qui échoue
+    fermée. */
+export function mineureLe(naissance: unknown, jour: string): boolean {
+  const n = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(naissance ?? '').slice(0, 10));
+  const j = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(jour ?? '').slice(0, 10));
+  if (!n || !j) return false;
+  let age = Number(j[1]) - Number(n[1]);
+  if (Number(j[2]) * 100 + Number(j[3]) < Number(n[2]) * 100 + Number(n[3])) age -= 1;
+  return age < 18;
+}
+
+/** Elle a déjà répondu : oui, non, ou STOP. */
+export const aDejaRepondu = (f: FicheDeLAccord | null | undefined): boolean =>
+  !!f && !!f.nouvelles && typeof f.nouvelles === 'object';
+
+/** Un enfant ne répond pas : l'accord se donne par le parent, sur sa fiche à lui. */
+export const estUneTeteDEnfant = (f: FicheDeLAccord, jour: string): boolean =>
+  (f.segments ?? []).includes('Enfant') || mineureLe(f.birthday, jour);
+
+/** LA QUESTION SE POSE-T-ELLE ? Jamais à qui a répondu (un STOP compris),
+    jamais sur une fiche archivée, jamais pour un enfant. `jour` : le jour du
+    salon, pour juger l'âge. */
+export function laQuestionSePose(f: FicheDeLAccord | null | undefined, jour: string): boolean {
+  if (!f) return false;
+  if (aDejaRepondu(f)) return false;
+  if (f.archived === true) return false;
+  if (estUneTeteDEnfant(f, jour)) return false;
+  return true;
+}
+
+/** LA RÉPONSE À ÉCRIRE, ou rien : jamais par-dessus une réponse déjà là (ni
+    oui, ni non, ni STOP), jamais sur une fiche où la question ne se pose pas.
+    Le jour est celui du salon (AAAA-MM-JJ). */
+export function accordAPoser(f: FicheDeLAccord | null | undefined, oui: boolean, jour: string, par: SourceDeLAccord): AccordPose | null {
+  if (typeof oui !== 'boolean') return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(jour ?? ''))) return null;
+  if (!laQuestionSePose(f, jour)) return null;
+  return { oui, le: jour, par };
+}
+/* ⟨/accord-des-nouvelles⟩ */
+
+/** La question se pose-t-elle à la fiche de ce rendez-vous ? Sans fiche lisible : non. */
+async function laQuestionDesNouvelles(clientId: unknown): Promise<boolean> {
+  if (!clientId) return false;
+  const { data } = await admin.from('clients').select('data').eq('id', String(clientId)).maybeSingle();
+  return laQuestionSePose((data?.data as FicheDeLAccord | undefined) ?? null, jourDeCotonou(new Date()));
+}
+
+async function nouvelles(req: Request, b: any) {
+  if (!(await permis(ipOf(req), 'regler-nouvelles', 20))) return json({ error: 'trop' }, 429);
+  const jeton = String(b.jeton ?? '').trim();
+  if (!estUnJeton(jeton) || typeof b.oui !== 'boolean') return json({ error: 'bad_request' }, 400);
+  const porte = await leRdvDuJetonOuDeLInvitee(jeton);
+  /* SEULE ELLE RÉPOND : l'invitée paie, elle ne donne pas l'accord d'une autre. */
+  if (!porte || porte.parInvitee) return json({ error: 'lien_introuvable' }, 404);
+  const d = porte.rdv.data ?? {};
+  if (d.status === 'annulé') return json({ error: 'annule' }, 409);
+  const clientId = String(d.clientId ?? '').trim();
+  if (!clientId) return json({ error: 'fiche' }, 404);
+  for (let essai = 0; essai < 3; essai++) {
+    const { data: fiche, error } = await admin.from('clients').select('id,branch_id,data,updated_at').eq('id', clientId).maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!fiche) return json({ error: 'fiche' }, 404);
+    const f = (fiche.data ?? {}) as FicheDeLAccord;
+    /* Elle a déjà répondu (ailleurs, ou d'un second toucher) : rien ne
+       s'écrit, et la page n'apprend pas ce qui était là. */
+    if (aDejaRepondu(f)) return json({ ok: true, deja: true });
+    const accord = accordAPoser(f, b.oui, jourDeCotonou(new Date()), 'reglement');
+    if (!accord) return json({ error: 'pas_demandable' }, 409);
+    let q = admin.from('clients').update({ data: { ...(fiche.data ?? {}), nouvelles: accord } }).eq('id', clientId);
+    if (fiche.updated_at) q = q.eq('updated_at', fiche.updated_at);
+    const { data: ecrites, error: refus } = await q.select('id');
+    if (refus) throw new Error(refus.message);
+    /* La fiche a bougé entre la lecture et l'écriture : on relit, on rejuge. */
+    if (!(ecrites ?? []).length) continue;
+    const geste = `geste-${crypto.randomUUID()}`;
+    try {
+      await admin.from('journal_gestes').insert({
+        id: geste, branch_id: fiche.branch_id ?? null,
+        data: {
+          id: geste, ...(fiche.branch_id ? { branchId: fiche.branch_id } : {}), quand: new Date().toISOString(), parNom: 'La cliente', porte: 'consultation',
+          verbe: 'modifie', table: 'clients', ecran: 'Page « Régler »', pieceId: clientId,
+          piece: `Accord des nouvelles : ${accord.oui ? 'oui' : 'non'}, en réglant sa séance`,
+          champs: [{ champ: 'Nouvelles', avant: 'pas encore', apres: accord.oui ? 'oui' : 'non' }],
+        },
+      });
+    } catch { /* le journal ne fait jamais tomber la réponse */ }
+    return json({ ok: true, oui: accord.oui });
+  }
+  return json({ error: 'ecriture' }, 409);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method === 'GET') {
@@ -1483,6 +1614,7 @@ Deno.serve(async (req) => {
     if (b.action === 'inviter') return await inviter(req, b);
     if (b.action === 'prochain') return await prochain(req, b);
     if (b.action === 'gamme') return await gamme(req, b);
+    if (b.action === 'nouvelles') return await nouvelles(req, b);
     return json({ error: 'action' }, 400);
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);

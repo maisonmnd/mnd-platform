@@ -697,6 +697,8 @@ const regles: Regle[] = [
         /* L'équipe du matin (21 novembre 2026) : la journée à l'équipe à 6 h, la question de 9 h ou 10 h, recopiées dans equipe-du-matin ; son bouton aussi dans whatsapp-webhook. */
         'equipe-du-matin': { fichier: 'src/shared/equipe-du-matin-pur.ts', extrait: (s) => entre(s, 'equipe-du-matin') },
         'bouton-de-l-equipe': { fichier: 'src/shared/equipe-du-matin-pur.ts', extrait: (s) => entre(s, 'bouton-de-l-equipe') },
+        /* L'accord des nouvelles, d'un bouton (26 novembre 2026, l'audit B1) : quand la question se pose et ce qui s'écrit, recopiés dans regler-la-seance. */
+        'accord-des-nouvelles': { fichier: 'src/shared/accord-des-nouvelles-pur.ts', extrait: (s) => entre(s, 'accord-des-nouvelles') },
       };
       const fonctions: string[] = [];
       const marche = (d: string) => { for (const n of readdirSync(d)) { const p = `${d}/${n}`; if (statSync(p).isDirectory()) marche(p); else if (/\.(ts|js)$/.test(n)) fonctions.push(p); } };

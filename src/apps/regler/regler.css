@@ -300,6 +300,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--rg-cuivre-clair
   text-transform: uppercase;
   color: var(--rg-cuivre);
 }
+/* Les nouvelles de la Maison, sous le merci (26 novembre 2026) : un filet, pas une carte. */
+.rg-nouvelles { width: 100%; text-align: left; border-top: 1px solid var(--rg-filet); padding-top: 14px; margin-top: 6px; }
 @media (prefers-reduced-motion: reduce) {
   .rg-direct i { animation: none; }
 }

@@ -11,6 +11,7 @@ import { MOYENS_DU_SCEAU, type MoyenDuSceau } from '../../shared/le-sceau-pur';
 import { ecouteLeFilDuSceau } from '../../shared/le-fil-du-sceau';
 import { PayerParMtn } from './Mtn';
 import { PayerParFedaPay } from './FedaPay';
+import { LesNouvelles } from './Nouvelles';
 import { Sceau, SceauPose } from '../../ds/sceau';
 import { QrSvg } from '../../ds/qr';
 
@@ -170,6 +171,8 @@ export default function App() {
   const [retourFp, setRetourFp] = useState<RetourFedaPay | null>(() => (demandeFp ? 'lecture' : null));
   /** Ce que FedaPay a confirmé, gardé pour la lecture du lien qui arriverait après. */
   const payeParFedaPay = useRef<{ paye: number; honore: boolean } | null>(null);
+  /* L'ACCORD DES NOUVELLES (26 novembre 2026) : la fonction dit si la question se pose à sa fiche. */
+  const [accordADemander, setAccordADemander] = useState(false);
 
   const lis = useCallback(async (essai = 0, attend = false): Promise<void> => {
     if (!jeton) { setEcran({ k: 'erreur', dit: 'Ce lien est incomplet. Demandez-en un nouveau à la Maison.' }); return; }
@@ -193,6 +196,7 @@ export default function App() {
       return;
     }
     const p = r.page;
+    setAccordADemander(r.accordADemander === true);
     /* Elle a terminé elle-même : le Trône prépare sa pièce. La page attend,
        et le dit ; au bout de trois minutes, le comptoir reste là. */
     if (p.etat === 'sans-piece' && p.enPreparation) {
@@ -812,6 +816,8 @@ export default function App() {
                 <span>Votre prochain rituel : {jourDit(ecran.page.prochainRituel.retenue.jour)}, {ecran.page.prochainRituel.retenue.heure}.</span>
               )}
             </div>
+            {/* LES NOUVELLES DE LA MAISON (26 novembre 2026) : jamais au TPE, ni pour l'invitée, ni pour un foyer. */}
+            {accordADemander && !auTpe() && !ecran.page.tetes && !ecran.page.parInvitee && <LesNouvelles jeton={jeton} prenom={ecran.page.prenom} />}
             {retourDemande() && <a className="rg-autre" href={retourAMaCouronne()}>Revenir à Ma Couronne</a>}
             {auTpe() && <a className="rg-autre" href="tpe.html">Revenir au TPE</a>}
           </section>

@@ -22,8 +22,10 @@
 /** « Nouvelles de la Maison : oui / non », daté, et d'où vient la réponse.
     `stop` : la tête a répondu STOP à une campagne. `whatsapp` (2 novembre
     2026) : demandé une fois sur WhatsApp après « Oui, je viens » ou un reçu
-    (shared/accord-whatsapp-pur). */
-export type AccordDesNouvelles = { oui: boolean; le: string; par: 'comptoir' | 'site' | 'couronne' | 'stop' | 'whatsapp' };
+    (shared/accord-whatsapp-pur). `reglement` (26 novembre 2026) : sur la
+    page « Régler », une fois sa séance réglée (shared/accord-des-nouvelles-pur,
+    écrit par la fonction regler-la-seance). */
+export type AccordDesNouvelles = { oui: boolean; le: string; par: 'comptoir' | 'site' | 'couronne' | 'stop' | 'whatsapp' | 'reglement' };
 
 export const aAccepteLesNouvelles = (c: { nouvelles?: AccordDesNouvelles }): boolean => c.nouvelles?.oui === true;
 

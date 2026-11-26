@@ -69,7 +69,8 @@ dit('R22 le message d erreur ne suppose pas la civilite', false, /comment elle n
 const accord = intake.slice(intake.indexOf('Les nouvelles de la Maison sur WhatsApp ?'), intake.indexOf('Les nouvelles de la Maison sur WhatsApp ?') + 900);
 dit('R23 la nouvelle fiche demande l accord des nouvelles', true, intake.includes('<Field label="Les nouvelles de la Maison sur WhatsApp ?">'));
 dit('R24 la nouvelle fiche ne part pas sans oui ni non', true, /if \(accordNouvelles === null\) \{ setError\(/.test(intake));
-dit('R25 l accord est ecrit, date, au comptoir', true, /nouvelles: \{ oui: accordNouvelles, le: todayISO\(\), par: 'comptoir' \},/.test(intake));
+/* Le jour du salon (26 novembre 2026, l'accord d'un bouton) : jamais l'horloge du poste. */
+dit('R25 l accord est ecrit, date du jour du salon, au comptoir', true, /nouvelles: \{ oui: accordNouvelles, le: momentDuSalon\(\)\.jour, par: 'comptoir' \},/.test(intake));
 dit('R26 les mots de l accord ne supposent pas la civilite', false, /\b(elle|il) (accepte|refuse)\b/i.test(accord));
 dit('R27 les rappels ne dependent pas de l accord, et l ecran le dit', true, accord.includes('Les rappels et les confirmations partent dans tous les cas.'));
 

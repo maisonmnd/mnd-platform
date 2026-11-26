@@ -44,7 +44,10 @@ export type PageDuLien = {
   sansPiece?: 'avance' | 'apres';
 };
 
-export type Reponse = { ok?: boolean; error?: string; version?: string; page?: PageDuLien; [k: string]: unknown };
+/** `accordADemander` (26 novembre 2026, 2026-11-26-b) : la question des
+    nouvelles se pose à sa fiche ; `lire` le dit à côté de la page, jamais la
+    réponse déjà là. */
+export type Reponse = { ok?: boolean; error?: string; version?: string; page?: PageDuLien; accordADemander?: boolean; [k: string]: unknown };
 
 async function appel(corps: Record<string, unknown>): Promise<Reponse> {
   if (!URL_PROJET) return { error: 'hors_ligne' };
@@ -84,6 +87,10 @@ export const inviteAUnePart = (jeton: string, nom: string) => appel({ action: 'i
     « plus-tard ». Une réponse ne se réécrit pas. */
 export const repondsAuProchainRituel = (jeton: string, geste: 'confirmer' | 'choisir' | 'plus-tard', place?: { jour: string; heure: string }) =>
   appel({ action: 'prochain', jeton, geste, ...(place ? { jour: place.jour, heure: place.heure } : {}) });
+/** L'ACCORD DES NOUVELLES — 26 novembre 2026. Sa réponse (« Oui, volontiers »
+    ou « Non merci »), écrite par la fonction sur la fiche du rendez-vous de
+    ce jeton, jamais par-dessus une réponse déjà là. */
+export const repondsAuxNouvelles = (jeton: string, oui: boolean) => appel({ action: 'nouvelles', jeton, oui });
 
 /** La version que la fonction dit (GET, sans clé de service), ou '' si elle
     n'est pas encore posée : le Trône n'envoie le lien que quand elle répond. */

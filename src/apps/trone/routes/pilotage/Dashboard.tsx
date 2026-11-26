@@ -23,6 +23,7 @@ import { usePrets, pretsASurveiller, joursEntre } from '../../../../shared/foyer
 import { useCoffre, useObjectifs, objectifsASurveiller } from '../../../../shared/finance';
 import { chiffreAttenduDuJour } from '../clients/chiffre-du-jour-pur';
 import { GroupeDeReplis, Repli } from './Replis';
+import { TuileDeLAccord } from './TuileDeLAccord';
 import {
   RdvModal, ReminderBell, StatusPill, tarifsDuRituel, apptLabel, apptNetXof, apptDueXof, apptDurationMin, addDaysISO, frShort, frShortAn, fromISO,
   predictNextVisit, timeToMin, todayISO, useBranchAppointments, useBranchAppointmentsAvecEssais, useBranchClients, useServicesById,
@@ -1101,6 +1102,9 @@ function TableauDeLaDirection() {
           </div>
         </div>
       </section>
+
+      {/* L'ACCORD DES NOUVELLES (26 novembre 2026, l'audit B1) : les réponses obtenues. */}
+      <TuileDeLAccord />
 
       {/* ── LE DÉTAIL : les panneaux qui agissent, fermés au départ, un seul ouvert ── */}
       {aDuDetail && (

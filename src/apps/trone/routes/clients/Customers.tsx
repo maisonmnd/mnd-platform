@@ -80,6 +80,8 @@ import './clients.css';
 import { splitNotes, serializeNotes, ConsultCards, EditConsultModal, type ConsultBlock } from './consultNotes';
 import { CarteModal } from './CarteModal';
 import { DroitImageModal } from './DroitImageModal';
+import { AccordSurLaFiche } from './AccordDesNouvelles';
+import { momentDuSalon } from '../../../../shared/calendrier';
 import { ditLAccord, estMineure, exemplaireDe } from '../../../../shared/droit-image';
 import { contratPdf } from '../../../../shared/pdf';
 import FichesDeSoin from './FichesDeSoin';
@@ -4963,35 +4965,11 @@ function Customer360({
           {/* LES NOUVELLES DE LA MAISON — 21 octobre 2026. Oui ou non, daté, tel
               qu'elle l'a dit : sans « oui », aucune campagne WhatsApp ne lui
               part, jamais (règle de WhatsApp, choix de Yéman). Les rappels, les
-              confirmations et les reçus n'en dépendent pas. */}
-          <div>
-            <span className="trc-microlabel">Nouvelles de la Maison</span>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className={`trc-chip ${client.nouvelles?.oui === true ? 'is-active' : ''}`}
-                aria-pressed={client.nouvelles?.oui === true}
-                onClick={() => patch({ nouvelles: { oui: true, le: todayISO(), par: 'comptoir' } })}
-              >
-                Elle accepte
-              </button>
-              <button
-                type="button"
-                className={`trc-chip ${client.nouvelles && !client.nouvelles.oui ? 'is-active' : ''}`}
-                aria-pressed={!!client.nouvelles && !client.nouvelles.oui}
-                onClick={() => patch({ nouvelles: { oui: false, le: todayISO(), par: 'comptoir' } })}
-              >
-                Elle refuse
-              </button>
-            </div>
-            <div className="trc-sub" style={{ marginTop: 8, lineHeight: 1.5 }}>
-              {!client.nouvelles
-                ? 'Pas encore demandé : aucune campagne WhatsApp ne lui part.'
-                : client.nouvelles.oui
-                  ? `Accepte les nouvelles de la Maison depuis le ${frShortAn(client.nouvelles.le)}${client.nouvelles.par === 'whatsapp' ? ', sur WhatsApp' : ''}.`
-                  : `A dit non le ${frShortAn(client.nouvelles.le)}${client.nouvelles.par === 'stop' ? ', en répondant STOP' : client.nouvelles.par === 'whatsapp' ? ', sur WhatsApp' : ''} : aucune campagne WhatsApp.`}
-            </div>
-          </div>
+              confirmations et les reçus n'en dépendent pas.
+              D'UN BOUTON (26 novembre 2026, l'audit B1) : la réponse dit son
+              jour et d'où elle vient, et ne se corrige qu'ici, au jour du
+              salon ; un STOP ne se lève qu'en second toucher (AccordDesNouvelles.tsx). */}
+          <AccordSurLaFiche client={client} />
 
           <div>
             <span className="trc-microlabel">Segments</span>
@@ -6122,7 +6100,7 @@ function IntakeModal({ onClose, personas }: { onClose: () => void; personas: Ret
       dePassage: true,
       connuePar,
       connueParLe: todayISO(),
-      nouvelles: { oui: accordNouvelles, le: todayISO(), par: 'comptoir' },
+      nouvelles: { oui: accordNouvelles, le: momentDuSalon().jour, par: 'comptoir' },
     };
     clientsStore.set((prev) => [...prev, client]);
     onClose();

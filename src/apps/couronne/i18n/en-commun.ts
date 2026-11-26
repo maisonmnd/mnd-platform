@@ -41,4 +41,14 @@ export const EN_COMMUN: Record<string, string> = {
   'au sortir de la création': 'right after your crown is created',
   'Le prolongement': 'The continuation',
   'quand le paquet s’épuise': 'when your pack runs out',
+  // Les nouvelles de la Maison (26 novembre 2026) : les mots de shared/accord-whatsapp-pur, à l'identique.
+  'Les nouvelles de la Maison': 'News from the Maison',
+  'Souhaitez-vous aussi recevoir les nouvelles de la Maison : les envies de saison, les offres et les places qui se libèrent ? Deux messages par mois au plus, et STOP à tout moment.':
+    'Would you also like to receive news from the Maison: seasonal ideas, offers and newly opened slots? Two messages a month at most, and STOP at any time.',
+  'Oui, volontiers': 'Yes, gladly',
+  'Non merci': 'No, thank you',
+  'Sur WhatsApp, au numéro de votre fiche.': 'On WhatsApp, at the number on your file.',
+  'Merci. Vous recevrez nos nouvelles ; un STOP suffit pour les arrêter.': 'Thank you. You will receive our news; a STOP is enough to end it.',
+  'Bien entendu : plus d\'offres ni de nouvelles. Vous continuerez de recevoir vos rappels, vos confirmations et, le jour venu, nos vœux d\'anniversaire.':
+    'Of course: no more offers or news. You will keep receiving your reminders, your confirmations and, when the day comes, our birthday wishes.',
 };

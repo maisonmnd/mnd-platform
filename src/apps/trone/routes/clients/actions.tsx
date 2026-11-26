@@ -41,6 +41,7 @@ import { CAISSE_EN_LIGNE as CAISSE_KKIAPAY_EN_LIGNE } from '../../../../shared/r
 import { CAISSE_MTN_COLLECTION, estUnNumeroMtn, msisdnDe } from '../../../../shared/collecte-mtn-pur';
 import { signaleMtnFerme, signaleUnePanne, signaleUneReussite, useLaSanteDesMoyens } from './sante-des-moyens';
 import { ReglementEnDirect } from './ReglementEnDirect';
+import { AccordAuComptoir } from './AccordDesNouvelles';
 import { DevisEnDirect } from './DevisEnDirect';
 import { ConfirmeParMtn } from './ConfirmeParMtn';
 import { PayerParMtnAuTrone } from './PayerParMtnAuTrone';
@@ -1205,6 +1206,8 @@ function EcranCEstRegle({ regle, appt, nom, sousTitre, longueur, onClose }: {
   onClose: () => void;
 }) {
   const { currency } = useBranch();
+  const [clientsDuRegle] = useClients();
+  const clientDuRegle = clientsDuRegle.find((c) => c.id === appt.clientId);
   /* ══ DEUX ÉTAPES NOMMÉES — 15 novembre 2026 (le rendez-vous suggéré) ══
      « Après avoir terminé un RDV, il y a une ambiguïté car on ne comprend
      pas qu'une nouvelle transaction commence avec un futur RDV, il faut
@@ -1287,6 +1290,8 @@ function EcranCEstRegle({ regle, appt, nom, sousTitre, longueur, onClose }: {
                     ))}
                   </div>
                 </section>
+                {/* LES NOUVELLES DE LA MAISON (26 novembre 2026) : elle est devant vous, la ligne tant qu'elle n'a pas répondu. */}
+                <AccordAuComptoir client={clientDuRegle} />
                 <div className="trv-regle__annonce">
                   {dejaLa ? (
                     <>
