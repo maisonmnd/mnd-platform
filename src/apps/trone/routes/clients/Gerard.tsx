@@ -60,6 +60,7 @@ import LesConversations from './LesConversations';
 import LesAvis from './LesAvis';
 import OffresEtRemises from './OffresEtRemises';
 import CeQueCaRapporte from './CeQueCaRapporte';
+import LesDixDuLundi from './LesDixDuLundi';
 import { CarteModal } from './CarteModal';
 import { FenetreDesCivilites } from './FenetreDesCivilites';
 import './gerard.css';
@@ -113,9 +114,11 @@ const codeDit = (s: Situation) => (s.code ? `−${s.code.pct} % · ${s.code.mot 
    21 novembre 2026 (« je me perds et n'y comprends rien », Yéman) : des noms
    courts, et une sixième vue, « Réglages », qui reprend tout ce qui se règle
    (Pause ou Actif, le plafond, les jours creux, les règles, les modèles). */
-type Vue = 'aujourdhui' | 'conversations' | 'avis' | 'offres' | 'rapporte' | 'reglages';
+type Vue = 'aujourdhui' | 'lundi' | 'conversations' | 'avis' | 'offres' | 'rapporte' | 'reglages';
 const VUES: readonly { cle: Vue; titre: string }[] = [
   { cle: 'aujourdhui', titre: 'Aujourd’hui' },
+  /* LES DIX DU LUNDI (26 novembre 2026, l'audit du Trône, point B2) : celles qui ont glissé, dix par semaine. */
+  { cle: 'lundi', titre: 'Les dix' },
   { cle: 'conversations', titre: 'Conversations' },
   { cle: 'avis', titre: 'Avis' },
   { cle: 'offres', titre: 'Offres' },
@@ -124,7 +127,7 @@ const VUES: readonly { cle: Vue; titre: string }[] = [
 ];
 const vueLue = (x: string | null): Vue => (VUES.some((v) => v.cle === x) ? (x as Vue) : 'aujourdhui');
 /** Le titre de la page, vue par vue (les vues en pleine page ont leur propre tête). */
-const TITRE_DE_LA_VUE: Partial<Record<Vue, string>> = { aujourdhui: 'Aujourd’hui.', rapporte: 'Résultats.', reglages: 'Réglages de Perle.' };
+const TITRE_DE_LA_VUE: Partial<Record<Vue, string>> = { aujourdhui: 'Aujourd’hui.', lundi: 'Les dix du lundi.', rapporte: 'Résultats.', reglages: 'Réglages de Perle.' };
 /** Les replis des Réglages (Entre deux séances, Ses règles, Modèles WhatsApp) : un seul ouvert à la fois. */
 type Repli = 'entre-deux' | 'regles' | 'modeles' | 'matin';
 /** Les lignes montrées d'abord dans « Perle écrit aujourd'hui » ; le reste se déplie. */
@@ -574,6 +577,7 @@ export default function Gerard() {
         {vue === 'avis' && <LesAvis {...propsDesVues} />}
         {vue === 'offres' && <OffresEtRemises {...propsDesVues} />}
         {vue === 'rapporte' && <CeQueCaRapporte {...propsDesVues} />}
+        {vue === 'lundi' && <LesDixDuLundi {...propsDesVues} />}
         {vue === 'aujourdhui' && (
           <>
             {/* AUJOURD'HUI, REFAIT (21 novembre 2026, « je me perds et n'y comprends rien… plus de si longs

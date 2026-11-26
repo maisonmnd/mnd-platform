@@ -1,0 +1,56 @@
+/* LES DIX DU LUNDI · 26 novembre 2026 (l'audit du Trône, point B2).
+   La vue reprend la liste de Perle (`trc-auj__*`, assistant-maison.css) ;
+   ici, ce qui lui est propre : la tête de la semaine, les trois chiffres, le
+   rang, le résumé de chaque ligne, les replis. Indigo et cuivre seulement,
+   le cuivre en accent ; rayons 2 à 4 px ; rien ne déborde à 390 px. */
+.trc-dix { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.trc-dix__tete { display: flex; flex-direction: column; gap: 4px; }
+.trc-dix__semaine { margin: 0; font-size: 11.5px; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; color: var(--copper-700); }
+.trc-dix__dit { margin: 0; font-size: 14px; color: var(--ink-soft); max-width: 640px; }
+
+.trc-dix__chiffres { display: flex; flex-wrap: wrap; gap: 12px; }
+.trc-dix__chiffre {
+  flex: 1 1 160px; box-sizing: border-box; min-width: 0; padding: 16px 20px;
+  border: 1px solid var(--hairline); border-radius: 4px; background: var(--surface-card);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.trc-dix__chiffre > b { font-family: var(--font-serif); font-weight: 300; font-size: 44px; line-height: 1; color: var(--color-indigo); overflow-wrap: anywhere; }
+.trc-dix__chiffre > span { font-size: 13.5px; color: var(--ink-soft); }
+.trc-dix__chiffre--francs { border-left: 2px solid var(--copper-600); }
+.trc-dix__depuis { margin: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--color-indigo); }
+.trc-dix__depuis small { font-size: 12.5px; color: var(--ink-soft); }
+.trc-dix__pause { margin: 0; padding: 10px 14px; border-left: 2px solid var(--copper-600); background: var(--copper-50); color: var(--color-indigo); font-size: 14px; border-radius: 2px; }
+
+.trc-dix__rang {
+  flex: 0 0 auto; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--indigo-100); border-radius: 3px; font-size: 12.5px; font-weight: 500; color: var(--indigo-500);
+  font-variant-numeric: tabular-nums;
+}
+.trc-dix__dernier { flex: 1 1 200px; min-width: 0; font-size: 13px; color: var(--ink-soft); overflow-wrap: anywhere; }
+.trc-dix__resume { display: flex; flex-wrap: wrap; gap: 2px 18px; padding: 0 14px 10px 56px; font-size: 13px; color: var(--indigo-500); }
+.trc-dix__resume > span { min-width: 0; overflow-wrap: anywhere; }
+.trc-auj__fin small.trc-dix__revenue { color: var(--color-indigo); font-weight: 500; }
+.trc-dix__panneau { display: flex; flex-direction: column; gap: 10px; }
+.trc-dix__etat { margin: 0; font-size: 14px; color: var(--color-indigo); }
+.trc-dix__gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.trc-dix__repli > summary { cursor: pointer; font-size: 13.5px; font-weight: 500; color: var(--indigo-500); padding: 6px 0; }
+.trc-dix__repli > summary:focus-visible { outline: 2px solid var(--color-copper); outline-offset: 2px; border-radius: 2px; }
+.trc-dix__hors, .trc-dix__semaines { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.trc-dix__hors li { display: flex; gap: 12px; align-items: baseline; font-size: 13.5px; color: var(--color-indigo); }
+.trc-dix__hors b { min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+.trc-dix__semaines li {
+  display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; padding: 8px 0;
+  border-top: 1px solid var(--hairline); font-size: 13.5px; color: var(--color-indigo);
+}
+.trc-dix__semaines li > span:first-child { flex: 1 1 180px; }
+.trc-dix__semaines li > b { font-weight: 500; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 560px) {
+  .trc-dix__resume { padding-left: 18px; }
+  .trc-dix__chiffre > b { font-size: 36px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .trc-dix__panneau { animation: trc-dix-fondu .2s ease-out; }
+}
+@keyframes trc-dix-fondu { from { opacity: 0; } to { opacity: 1; } }

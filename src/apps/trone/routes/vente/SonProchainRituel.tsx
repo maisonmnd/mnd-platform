@@ -95,6 +95,7 @@ import { estEnAttente, etatDeLAttente } from '../../../../shared/rendez-vous-en-
 import { laPlaceDuSouhait, leRituelVoulu, phraseDuSouhait, type Souhait } from '../../../../shared/agent-des-rendez-vous-pur';
 import { supabase } from '../../../../shared/supabase';
 import { nomEtEnClair } from '../../../../shared/en-clair-pur';
+import { estSaPremiereVisite, PREMIERE_VISITE_DIT, PREMIERE_VISITE_TITRE } from '../../../../shared/la-deuxieme-visite-pur';
 import './son-prochain-rituel.css';
 
 const NOMS_DES_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -139,6 +140,8 @@ export type VueDeLaCarte = {
   /** Une place est montrée, rien n'est encore posé, et elle se pose ici
       (rien qui demande sa fiche) : l'agent peut la valider seul. */
   aPoser: boolean;
+  /** LA DEUXIÈME VISITE (26 novembre 2026, l'audit, point B2) : ce rituel est sa première visite. */
+  premiereVisite: boolean;
 };
 
 /** LE MODÈLE DE LA PROPOSITION EST-IL APPROUVÉ CHEZ META ? (15 novembre 2026)
@@ -223,6 +226,8 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   /* Ses venues honorées : celles que lisent son heure et son jour habituels
      dans la fenêtre du rendez-vous (`sesVenues`). */
   const sesVenues = useMemo(() => siens.filter((a) => a.status === 'honoré'), [siens]);
+  /* LA DEUXIÈME VISITE SE JOUE AU FAUTEUIL (26 novembre 2026, l'audit, point B2) : sa première visite se dit en tête. */
+  const premiereVisite = useMemo(() => estSaPremiereVisite({ rdvs: siens, jour, rituelId }), [siens, jour, rituelId]);
   /* SA CADENCE GÉNÉRALE, CELLE QUE LIT PERLE (assistant-lecture-pur.ts :
      `rythmeJours`) : l'intervalle de `predictNextVisit` sur ses venues
      honorées (un rendez-vous déjà pris ne l'efface pas), sinon le rythme de
@@ -1039,6 +1044,9 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
 
   const vue = (
     <div className="trv-prochain-carte" data-carte={carte.valide ? 'validee' : carte.dejaLa ? 'deja' : carte.retire ? 'retiree' : carte.place ? 'proposee' : 'a-poser'}>
+      {premiereVisite && !carte.dejaLa && (
+        <p className="trv-prochain__premiere" role="note"><b>{PREMIERE_VISITE_TITRE}</b><span>{PREMIERE_VISITE_DIT}</span></p>
+      )}
       {corps}
       {fenetre && (
         <RdvModal
@@ -1106,7 +1114,7 @@ export function SonProchainRituel({ clientId, serviceIds, jour, longueur, rituel
   const valider = () => { if (carte.place && !carte.valide && !carte.dejaLa && !carte.retire) fais({ genre: 'valider', id: uid() }); };
   const aPoser = !!carte.place && !carte.valide && !carte.dejaLa && !carte.retire && !casAPart(carte.place.iso);
 
-  if (children) return <>{children({ carte: vue, pied, terminer, plein, poser, sansSuite, question, libelleDuGeste, dejaLa: carte.dejaLa, dejaLaDit, valider, aPoser })}</>;
+  if (children) return <>{children({ carte: vue, pied, terminer, plein, poser, sansSuite, question, libelleDuGeste, dejaLa: carte.dejaLa, dejaLaDit, valider, aPoser, premiereVisite })}</>;
   return (
     <section className="trv-prochain" aria-label="Son prochain rituel, à la Caisse">
       {vue}

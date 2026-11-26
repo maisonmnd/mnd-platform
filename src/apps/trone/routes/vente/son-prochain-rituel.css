@@ -230,3 +230,8 @@
 }
 .trv-reussite .trv-prochain__puces { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .trv-reussite .trv-prochain__qui { grid-template-columns: minmax(0, 1fr); }
+/* LA DEUXIÈME VISITE SE JOUE AU FAUTEUIL (26 novembre 2026, l'audit, point B2) :
+   en tête de la carte, sa première visite se dit ; le filet cuivre, en accent. */
+.trv-prochain-carte .trv-prochain__premiere { margin: 0; display: grid; gap: 2px; padding: 10px 14px; border-left: 2px solid var(--color-copper); background: var(--paper); font-family: var(--font-sans); }
+.trv-prochain-carte .trv-prochain__premiere b { font-size: 14.5px; font-weight: 500; color: var(--color-indigo); }
+.trv-prochain-carte .trv-prochain__premiere span { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }

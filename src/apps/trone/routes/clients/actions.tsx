@@ -83,6 +83,7 @@ import { useEstDirection } from '../_vie';
 import { methodeDuMoyenLu, noteDeLaCapture, type MoyenLu } from '../../../../shared/ia-capture-pur';
 import { DeposerUneCapture } from '../vente/DeposerUneCapture';
 import { SonProchainRituel } from '../vente/SonProchainRituel';
+import { PREMIERE_VISITE_DIT, PREMIERE_VISITE_TITRE } from '../../../../shared/la-deuxieme-visite-pur';
 import { jourEnLettres } from '../../../../shared/calendrier';
 import { heureDuMessage } from '../../../../shared/salle-des-envois';
 import { proposeLaProchaineSeanceApresLHonneur } from '../../../../shared/messages-de-l-abonnee';
@@ -1238,7 +1239,7 @@ function EcranCEstRegle({ regle, appt, nom, sousTitre, longueur, onClose }: {
       rituelId={appt.id}
       onFerme={onClose}
     >
-      {({ carte, pied, terminer, poser, sansSuite, question, libelleDuGeste, dejaLa, dejaLaDit }) => (
+      {({ carte, pied, terminer, poser, sansSuite, question, libelleDuGeste, dejaLa, dejaLaDit, premiereVisite }) => (
         <Modal
           title={(
             <span className="trv-regle__titre">
@@ -1300,8 +1301,9 @@ function EcranCEstRegle({ regle, appt, nom, sousTitre, longueur, onClose }: {
                     </>
                   ) : (
                     <>
-                      <b>Ensuite : son prochain rendez-vous</b>
-                      <span>Une nouvelle étape, à part de ce règlement. Rien n’est posé tant que vous ne le décidez pas.</span>
+                      {/* LA DEUXIÈME VISITE (26 novembre 2026, l'audit, point B2) : sa première visite se dit ici, avant « Fermer ». */}
+                      <b>{premiereVisite ? PREMIERE_VISITE_TITRE : 'Ensuite : son prochain rendez-vous'}</b>
+                      <span>{premiereVisite ? PREMIERE_VISITE_DIT : 'Une nouvelle étape, à part de ce règlement. Rien n’est posé tant que vous ne le décidez pas.'}</span>
                     </>
                   )}
                 </div>
