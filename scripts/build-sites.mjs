@@ -81,7 +81,7 @@ const SITES = [
   {
     name: 'trone',
     base: '/trone/',
-    apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler,devis,tpe',
+    apps: 'trone,consultation,certificat,bilan,bulletin,carte,regler,devis',
     rename: { 'trone.html': 'index.html' },
     // Connexion obligatoire pour l'ERP (le personnel se connecte par e-mail) :
     // son verrou n'est pas posé ici, mais pour TOUS les sites, au lancement de
@@ -125,7 +125,15 @@ const SITES = [
   {
     name: 'mnd-platform',
     base: '/mnd-platform/',
-    apps: 'portail',
+    /* TRÔNE TERMINAL VIT ICI — 26 novembre 2026. Sous /trone/, l'app Le Trône
+       installée sur un Android captait le lien du TPE de poche : il s'ouvrait
+       DANS Le Trône, et rien ne proposait d'installer Trône Terminal. Le
+       portail est hors de sa portée. tpe.html y vit avec la page « Régler »
+       (le TPE l'ouvre à côté de lui, `regler.html?r=…&tpe=1`, dans la portée
+       de l'app) ; payer.html (public/) y mène aussi. « Le portail, tout de
+       suite », au sélecteur (Yéman) : le compte maisonmnd ne peut pas recevoir
+       de dépôt « terminal » sans elle. */
+    apps: 'portail,tpe,regler',
     rename: {},
     env: {
       VITE_LINK_TRONE: `${HOST}/trone/`,

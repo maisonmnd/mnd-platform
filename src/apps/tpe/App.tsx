@@ -56,13 +56,17 @@ const lanceeParLeTerminal = (): boolean => {
     return dit;
   }
 };
+/* LE BOUTON « OUVRIR DANS CHROME » NE FAISAIT RIEN (26 novembre 2026, essai
+   de Yéman) : une app qui vit dans Chrome ne se relance pas Chrome. Trône
+   Terminal a donc quitté /trone/ pour le portail (CHEMIN_DU_TERMINAL), hors de
+   la portée de Le Trône ; si une autre app la capte encore, la page donne son
+   adresse à ouvrir dans le navigateur. */
 const dansUneAutreApp = (): boolean => estAutonome() && !lanceeParLeTerminal();
-/** La même page, ouverte de force dans Chrome (Android) : l'app qui capte les
-    liens ne la reprend pas, et Chrome y propose d'installer Trône Terminal. */
-const versChrome = (): string => {
+const adresseSansMarque = (): string => {
   const u = new URL(window.location.href);
   u.searchParams.delete('app');
-  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;end`;
+  u.searchParams.delete('a');
+  return u.toString();
 };
 /** Le service de l'app, à portée étroite (`…/tpe`) : jamais celui du Trône. */
 function enregistreLeServiceDeLApp(): void {
@@ -77,10 +81,8 @@ function Installer({ invitation, onInstalle }: { invitation: InvitationAInstalle
   if (dansUneAutreApp()) {
     return (
       <div className="tp-installer">
-        <p className="tp-doux tp-petit"><b>Vous êtes dans une autre application</b> (Le Trône) : elle ne peut pas installer Trône Terminal.</p>
-        {estUnIphone()
-          ? <p className="tp-doux tp-petit">Ouvrez Safari, allez à l’adresse de cette page, puis Partager › « Sur l’écran d’accueil ».</p>
-          : <a className="tp-btn tp-btn--plein" href={versChrome()}>Ouvrir dans Chrome pour installer</a>}
+        <p className="tp-doux tp-petit"><b>Vous êtes dans une autre application</b> : elle ne peut pas installer Trône Terminal. Ouvrez cette adresse dans {estUnIphone() ? 'Safari' : 'Chrome'} :</p>
+        <p className="tp-adresse">{adresseSansMarque()}</p>
       </div>
     );
   }

@@ -129,6 +129,12 @@ export const tpeAVerrouiller = (dernierToucherMs: number, maintenantMs: number):
 export const estUnCodeSecretDuTpe = (s: unknown): boolean => typeof s === 'string' && /^\d{4}$/.test(s);
 /* ⟨/tpe-de-poche⟩ */
 
+/** OÙ VIT TRÔNE TERMINAL — 26 novembre 2026 : sur le site du portail, hors de
+    la portée de l'app Le Trône (qui captait /trone/ sur Android). Un chemin
+    relatif à l'origine, comme tous les liens entre sœurs ; en développement,
+    tout vit à la racine. */
+export const CHEMIN_DU_TERMINAL = '/mnd-platform/';
+
 /** L'adresse que le QR d'activation porte, à côté du Trône servi : aucun nom
     de domaine écrit ici (la règle de la Maison), l'origine et le chemin
     viennent de la page qui l'affiche. */

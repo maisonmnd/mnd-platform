@@ -6,7 +6,7 @@ import { fmtMoney } from '../../../../shared/currency';
 import { useBranch } from '../../../../shared/branches';
 import { useAppointments, type Appointment } from '../../../../shared/agenda';
 import { prenomDUsage } from '../../../../shared/civilite';
-import { adresseDActivation, codeDuTpeDit, etatDuTpe, jourDuTpe, type EtatDuTpe, type LigneDuTpe, type MarqueDuTpe } from '../../../../shared/tpe-de-poche-pur';
+import { CHEMIN_DU_TERMINAL, adresseDActivation, codeDuTpeDit, etatDuTpe, jourDuTpe, type EtatDuTpe, type LigneDuTpe, type MarqueDuTpe } from '../../../../shared/tpe-de-poche-pur';
 import { gesteDuTpe, useLesTpe } from '../../../../shared/tpe-de-poche';
 import { useStaff } from '../equipe/data';
 
@@ -71,8 +71,9 @@ export default function TpeDePoche() {
     .sort((a, b) => a.name.localeCompare(b.name, 'fr')), [equipe, branch.id]);
   const ligneDe = (membreId: string): LigneDuTpe | undefined => lignes.find((l) => l.membre_id === membreId);
 
-  /* Le dossier servi (« /trone/ ») : tpe.html vit à côté du Trône. */
-  const dossier = window.location.pathname.replace(/[^/]*$/, '');
+  /* Le dossier de Trône Terminal (le portail, 26 novembre 2026) : hors de la
+     portée de l'app Le Trône, qui captait le QR sur Android. */
+  const dossier = import.meta.env.DEV ? '/' : CHEMIN_DU_TERMINAL;
 
   const fais = async (cle: string, travail: () => Promise<void>) => {
     setEnCours(cle);

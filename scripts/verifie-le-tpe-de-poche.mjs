@@ -93,6 +93,7 @@ const FICHIERS = {
   regler: 'src/apps/regler/App.tsx',
   vite: 'vite.config.ts',
   sites: 'scripts/build-sites.mjs',
+  pur: 'src/shared/tpe-de-poche-pur.ts',
   manifeste: 'public/manifest.tpe.webmanifest',
   page: 'tpe.html',
   service: 'public/tpe-sw.js',
@@ -249,9 +250,9 @@ const controles = [
     casse: (s) => ({ ...s, routes: remplace(s.routes, ", '/demander', '/tpe-de-poche']", ", '/demander']") }),
   },
   {
-    dit: 'tpe.html se construit avec le Trone, a cote de regler.html',
-    ok: (s) => /tpe: resolve\(__dirname, 'tpe\.html'\),/.test(s.vite) && /apps: 'trone,[^']*\bregler\b[^']*\btpe\b[^']*'/.test(s.sites),
-    casse: (s) => ({ ...s, sites: remplace(s.sites, ',devis,tpe', ',devis') }),
+    dit: 'tpe.html se construit avec le portail, a cote de regler.html',
+    ok: (s) => /tpe: resolve\(__dirname, 'tpe\.html'\),/.test(s.vite) && /apps: 'portail,tpe,regler',/.test(s.sites),
+    casse: (s) => ({ ...s, sites: remplace(s.sites, "apps: 'portail,tpe,regler',", "apps: 'portail,tpe',") }),
   },
   {
     dit: 'Trone Terminal s installe : son manifeste (nom, tpe.html, plein ecran, icones 192 et 512) et tpe.html qui le cite',
@@ -282,10 +283,18 @@ const controles = [
     casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'const touche = () => { if (ouvert.current) noteLeToucher(); };', 'const touche = () => { noteLeToucher(); };') }),
   },
   {
-    dit: 'ouverte dans une autre app (Le Trone), la page le dit et propose Chrome pour installer',
+    dit: 'ouverte dans une autre app, la page le dit et donne son adresse a ouvrir dans le navigateur',
     ok: (s) => /const dansUneAutreApp = \(\): boolean => estAutonome\(\) && !lanceeParLeTerminal\(\);/.test(s.telephone)
-      && /#Intent;scheme=https;package=com\.android\.chrome;end/.test(s.telephone) && /if \(dansUneAutreApp\(\)\) \{/.test(s.telephone),
+      && /<p className="tp-adresse">\{adresseSansMarque\(\)\}<\/p>/.test(s.telephone) && /if \(dansUneAutreApp\(\)\) \{/.test(s.telephone),
     casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'if (dansUneAutreApp()) {', 'if (false) {') }),
+  },
+  {
+    dit: 'Trone Terminal vit sur le portail, hors de la portee de l app Le Trone ; le QR du Trone y mene',
+    ok: (s) => /export const CHEMIN_DU_TERMINAL = '\/mnd-platform\/';/.test(s.pur)
+      && /const dossier = import\.meta\.env\.DEV \? '\/' : CHEMIN_DU_TERMINAL;/.test(s.trone)
+      && /name: 'mnd-platform',[\s\S]*?apps: 'portail,tpe,regler',/.test(s.sites)
+      && !/apps: 'trone,[^']*\btpe\b/.test(s.sites),
+    casse: (s) => ({ ...s, sites: remplace(s.sites, "apps: 'portail,tpe,regler',", "apps: 'portail',") }),
   },
   {
     dit: 'le banc du prenom d usage tient aussi la copie de tpe-de-poche',
