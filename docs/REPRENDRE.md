@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE TPE DE POCHE, LOT 2b : « AUTRE MONTANT » ET LE NOM DE L'EMPLOYÉE SUR LE VERSEMENT — 26 novembre 2026, construit, À METTRE EN LIGNE (0248 ; `tpe-de-poche` 2026-11-26-b ; `regler-la-seance` et `collecte-mtn` 2026-11-26-a ; portail et Trône)
+## LE TPE DE POCHE, LOT 2b : « AUTRE MONTANT » ET LE NOM DE L'EMPLOYÉE SUR LE VERSEMENT — 26 novembre 2026, EN LIGNE (0248 passée ; `tpe-de-poche` v3 2026-11-26-b, `regler-la-seance` v49 et `collecte-mtn` v26 en 2026-11-26-a, Verify JWT éteint ; portail et Trône build 20261126060256 @ 0d76cd4f9, 323/323 et 573/573 ; essais sans téléphone ni argent verts : `autre`, `autre-paye`, `autre-abandon` à jeton bidon → 401 `coupe`, `tpe_autres` vide, `payments` inchangé ; reste l'essai réel avec Yéman)
 
 « Construis le lot 2b » (Yéman). La suite du 2a, tranchée par la maquette RsVNQvgB… : « Autre montant sert à un produit de la Gamme ou à un acompte, avec un motif ».
 
