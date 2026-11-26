@@ -2,7 +2,7 @@
 
 État au 15 août 2026. À lire en premier dans une nouvelle session.
 
-## LE TPE DE POCHE, LOT 2a : LES PLAFONDS, LES ESPÈCES, LE TOTAL DU SOIR — 26 novembre 2026 (bancs verts ; à mettre en ligne : SQL 0247, `tpe-de-poche` 2026-11-26-a, le portail, le Trône)
+## LE TPE DE POCHE, LOT 2a : LES PLAFONDS, LES ESPÈCES, LE TOTAL DU SOIR — 26 novembre 2026, EN LIGNE (0247 passée ; `tpe-de-poche` v2, 2026-11-26-a, six essais sans téléphone verts ; portail et Trône build 20261126014437 @ a6a3bb93, 323/323 et 573/573 ; reste l'essai réel avec Yéman : « Prend les espèces » coché, une déclaration, « Reçu · encaisser »)
 
 « Construis le lot 2 de la TPE » (Yéman). Pris de mnd-platform-2c (lot 1), qui ne l'avait pas commencé. Les choix de la maquette RsVNQvgB…, retenus tels quels. Le lot 2 est coupé en deux : **2a** ici ; **2b** à venir, « Autre montant » (Gamme, acompte, motif) et l'attribution sur le paiement lui-même, qui touchent `regler-la-seance` et `collecte-mtn`.
 
