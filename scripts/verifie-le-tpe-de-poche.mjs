@@ -258,7 +258,7 @@ const controles = [
     ok: (s) => {
       let m = null;
       try { m = JSON.parse(s.manifeste); } catch { /* illisible */ }
-      return !!m && m.name === 'Trône Terminal' && m.start_url === 'tpe.html' && m.display === 'standalone'
+      return !!m && m.name === 'Trône Terminal' && m.id === 'tpe.html' && m.start_url === 'tpe.html?app=terminal' && m.display === 'standalone'
         && ['192x192', '512x512'].every((t) => (m.icons ?? []).some((i) => i.sizes === t))
         && /<link rel="manifest" href="\/manifest\.tpe\.webmanifest" \/>/.test(s.page);
     },
@@ -273,6 +273,19 @@ const controles = [
     dit: 'sur iPhone, dans Safari, le code ne se consomme pas d emblee : l app d abord',
     ok: (s) => /dAbordLApp: estUnIphone\(\) && !estAutonome\(\)/.test(s.telephone) && /!vue\.dAbordLApp && !activationLancee\.current/.test(s.telephone),
     casse: (s) => ({ ...s, telephone: remplace(s.telephone, '!vue.dAbordLApp && !activationLancee.current', '!activationLancee.current') }),
+  },
+  {
+    dit: 'seul un toucher sur le TPE ouvert le garde ouvert ; un code faux n entretient rien',
+    ok: (s) => /const touche = \(\) => \{ if \(ouvert\.current\) noteLeToucher\(\); \};/.test(s.telephone)
+      && /ouvert\.current = vue\.k === 'liste' \|\| vue\.k === 'rdv';/.test(s.telephone)
+      && /setSaisie\(''\);\s*\/\* Un code faux n'ouvre rien, et n'entretient rien\. \*\/\s*oublieLeToucher\(\);/.test(s.telephone),
+    casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'const touche = () => { if (ouvert.current) noteLeToucher(); };', 'const touche = () => { noteLeToucher(); };') }),
+  },
+  {
+    dit: 'ouverte dans une autre app (Le Trone), la page le dit et propose Chrome pour installer',
+    ok: (s) => /const dansUneAutreApp = \(\): boolean => estAutonome\(\) && !lanceeParLeTerminal\(\);/.test(s.telephone)
+      && /#Intent;scheme=https;package=com\.android\.chrome;end/.test(s.telephone) && /if \(dansUneAutreApp\(\)\) \{/.test(s.telephone),
+    casse: (s) => ({ ...s, telephone: remplace(s.telephone, 'if (dansUneAutreApp()) {', 'if (false) {') }),
   },
   {
     dit: 'le banc du prenom d usage tient aussi la copie de tpe-de-poche',

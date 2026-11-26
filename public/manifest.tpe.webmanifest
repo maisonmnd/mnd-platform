@@ -3,7 +3,7 @@
   "name": "Trône Terminal",
   "short_name": "Trône TPE",
   "description": "Le TPE de poche de la Maison MND : encaisser les séances du jour.",
-  "start_url": "tpe.html",
+  "start_url": "tpe.html?app=terminal",
   "scope": ".",
   "display": "standalone",
   "orientation": "portrait",

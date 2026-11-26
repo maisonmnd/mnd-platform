@@ -39,6 +39,31 @@ const estAutonome = (): boolean => {
   }
 };
 const estUnIphone = (): boolean => /iPhone|iPad|iPod/i.test(navigator.userAgent);
+/* OUVERTE PAR SON ICÔNE, OU DANS UNE AUTRE APP (26 novembre 2026, « je n'ai
+   toujours pas la possibilité d'installer l'app », Yéman). Sur Android, quand
+   l'app Le Trône est installée, elle capte tous les liens /trone/ : le QR du
+   TPE s'ouvre alors DANS Le Trône, en plein écran, où aucun navigateur ne
+   propose d'installer. Le manifeste lance Trône Terminal avec `?app=terminal`
+   (gardé pour l'onglet) : plein écran SANS cette marque, c'est une autre app,
+   et la page propose de s'ouvrir dans Chrome pour installer la sienne. */
+const CLE_DE_L_APP = 'mnd-tpe-dans-l-app';
+const lanceeParLeTerminal = (): boolean => {
+  const dit = new URLSearchParams(window.location.search).get('app') === 'terminal';
+  try {
+    if (dit) sessionStorage.setItem(CLE_DE_L_APP, '1');
+    return dit || sessionStorage.getItem(CLE_DE_L_APP) === '1';
+  } catch {
+    return dit;
+  }
+};
+const dansUneAutreApp = (): boolean => estAutonome() && !lanceeParLeTerminal();
+/** La même page, ouverte de force dans Chrome (Android) : l'app qui capte les
+    liens ne la reprend pas, et Chrome y propose d'installer Trône Terminal. */
+const versChrome = (): string => {
+  const u = new URL(window.location.href);
+  u.searchParams.delete('app');
+  return `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=https;package=com.android.chrome;end`;
+};
 /** Le service de l'app, à portée étroite (`…/tpe`) : jamais celui du Trône. */
 function enregistreLeServiceDeLApp(): void {
   try {
@@ -49,6 +74,16 @@ function enregistreLeServiceDeLApp(): void {
 }
 
 function Installer({ invitation, onInstalle }: { invitation: InvitationAInstaller | null; onInstalle: () => void }) {
+  if (dansUneAutreApp()) {
+    return (
+      <div className="tp-installer">
+        <p className="tp-doux tp-petit"><b>Vous êtes dans une autre application</b> (Le Trône) : elle ne peut pas installer Trône Terminal.</p>
+        {estUnIphone()
+          ? <p className="tp-doux tp-petit">Ouvrez Safari, allez à l’adresse de cette page, puis Partager › « Sur l’écran d’accueil ».</p>
+          : <a className="tp-btn tp-btn--plein" href={versChrome()}>Ouvrir dans Chrome pour installer</a>}
+      </div>
+    );
+  }
   if (estAutonome()) return null;
   if (invitation) {
     return (
@@ -149,13 +184,26 @@ export default function App() {
     return () => { window.removeEventListener('beforeinstallprompt', garde); window.removeEventListener('appinstalled', installee); };
   }, []);
 
-  /* ── Le toucher garde le TPE ouvert ; deux minutes sans, il se verrouille. ── */
+  /* ── Le toucher garde le TPE ouvert ; deux minutes sans, il se verrouille. ──
+     SEUL UN TOUCHER SUR LE TPE OUVERT COMPTE (26 novembre 2026, « n'importe
+     quel code ouvre le terminal », Yéman) : chaque toucher de l'écran du
+     code, même faux, se notait comme une activité ; la page rouverte dans les
+     deux minutes croyait alors le TPE en main et sautait le code. */
+  const ouvert = useRef(false);
+  useEffect(() => { ouvert.current = vue.k === 'liste' || vue.k === 'rdv'; }, [vue.k]);
   useEffect(() => {
-    const touche = () => { noteLeToucher(); };
+    const touche = () => { if (ouvert.current) noteLeToucher(); };
     window.addEventListener('pointerdown', touche);
     window.addEventListener('keydown', touche);
     const minuterie = setInterval(() => {
-      setVue((v) => (v.k === 'liste' || v.k === 'rdv') && tpeAVerrouiller(dernierToucher(), Date.now()) ? { k: 'verrou' } : v);
+      setVue((v) => {
+        if ((v.k === 'liste' || v.k === 'rdv') && tpeAVerrouiller(dernierToucher(), Date.now())) {
+          ouvert.current = false;
+          oublieLeToucher();
+          return { k: 'verrou' };
+        }
+        return v;
+      });
     }, 5_000);
     return () => { window.removeEventListener('pointerdown', touche); window.removeEventListener('keydown', touche); clearInterval(minuterie); };
   }, []);
@@ -231,6 +279,8 @@ export default function App() {
       if (t && await secretJuste(s, t.secret)) { setSaisie(''); setErreurs(0); noteLeToucher(); setVue({ k: 'liste' }); return; }
       const n = erreurs + 1;
       setSaisie('');
+      /* Un code faux n'ouvre rien, et n'entretient rien. */
+      oublieLeToucher();
       if (n >= ESSAIS_DU_SECRET) { gardeLeTpe(null); oublieLeToucher(); setTpe(null); setErreurs(0); setVue({ k: 'activation', code: '', erreur: 'Cinq codes faux : le TPE est retiré de ce téléphone. Demandez un nouveau QR au Trône.' }); return; }
       setErreurs(n);
     }
@@ -326,9 +376,9 @@ export default function App() {
         {tete}
         <section className="tp-bloc tp-centre">
           <p className="tp-sur">TPE de poche{tpe?.nom ? ` · ${tpe.nom}` : ''}</p>
-          <h1>{choisir ? (vue.premier ? 'Encore une fois' : 'Choisissez votre code') : 'Votre code'}</h1>
+          <h1>{choisir ? (vue.premier ? 'Encore une fois' : 'Inventez votre code secret') : 'Votre code secret'}</h1>
           <p className="tp-doux">{choisir
-            ? (erreurs === -1 ? 'Les deux codes ne se ressemblaient pas. Recommencez.' : 'Quatre chiffres. Il ouvre votre TPE, et lui seul.')
+            ? (erreurs === -1 ? 'Les deux codes ne se ressemblaient pas. Recommencez.' : 'Quatre chiffres, choisis par vous, maintenant. Ils seront demandés à chaque ouverture du TPE.')
             : (erreurs > 0 ? `Code faux. Encore ${ESSAIS_DU_SECRET - erreurs} essai${ESSAIS_DU_SECRET - erreurs > 1 ? 's' : ''}.` : 'Deux minutes sans toucher : le TPE s’est verrouillé.')}</p>
           <Points n={saisie.length} />
           <Clavier onChiffre={(c) => { void chiffre(c); }} onEfface={() => setSaisie((s) => s.slice(0, -1))} />
